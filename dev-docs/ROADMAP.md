@@ -8,7 +8,10 @@ This fork extends coverage so Claude can drive a real Gantt: dependencies, resou
 
 - **v0.3.0** tagged 2026-05-01 (Tier 1 of this roadmap).
 - **19 tools** registered (upstream baseline: 6).
-- **40 integration tests pass**, 2 skip when no saved doc, 2 `xfail(strict=True)` sentinels for omniJS gaps.
+- **44 tests** collected: 8 unit + 36 integration. On the omniplan-dev Tart
+  VM (untitled doc): 40 pass, 2 skip (`save_document` tests gated on
+  `document.path`), 2 `xfail(strict=True)` sentinels for omniJS gaps. On
+  the host with a saved doc open: 42 pass, 0 skip, 2 xfail.
 
 | Tier | Status | Date |
 |---|---|---|
@@ -39,12 +42,13 @@ found to be missing or broken, see [`omnijs-persistence-gaps.md`](omnijs-persist
 | `task.effort = N` (raw integer person-seconds — NOT a Duration) | ✓ |
 | `task.minEffortEstimate`, `expectedEffortEstimate`, `maxEffortEstimate` | ✓ persistent. Setting all three triggers PERT recompute of `effort = (min + 4·expected + max) / 6` |
 | `task.title`, `task.note`, `task.manualStartDate`, `task.manualEndDate` | ✓ |
-| `task.remove()`, `task.split(...)` | ✓ |
+| `task.remove()` | ✓ — used in source |
+| `task.split(...)` | probed-only — exists on the prototype but not exercised by any current tool |
 | `task.addDependent(other) -> Dependency` (then `dep.kind = DependencyKind.X` separately) | ✓ |
 | `DependencyKind.{FinishStart, FinishFinish, StartStart, StartFinish}` | ✓ |
 | `dep.prerequisite`, `dep.dependent`, `dep.kind`, `dep.remove()` | ✓ |
 | `task.dependents`, `task.prerequisites` (arrays of Dependency) | ✓ |
-| `actual.taskNamed(name)` (on Scenario, not Document; returns `null` on miss) | ✓ |
+| `actual.taskNamed(name)` (on Scenario, not Document; returns `null` on miss) | probed-only — `find_task` uses `descendents()` traversal because it also needs the outline path, but `taskNamed` is verified to exist and behave as documented |
 | `document.save()` (no args) | ✓ — async-clears the dirty flag ~500ms later |
 | `document.modified()` (JXA SDEF) | ✓ |
 | `documents()[0].path()` (JXA SDEF, omniJS doesn't expose `document.path`) | ✓ |

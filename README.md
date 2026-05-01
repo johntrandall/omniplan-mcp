@@ -25,16 +25,18 @@ See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) "Verified vs unverified API cla
 
 ## Installation
 
-This fork (`v0.3.0`, 19 tools):
+This fork (`v0.3.0`, 19 tools) — pinned to the tag because `origin/main`
+hasn't yet caught up to the v0.3.0 commits (a harness rule on the original
+author's machine prevents direct pushes to main):
 
 ```bash
-uv tool install --from git+https://github.com/johntrandall/omniplan-mcp.git omniplan-mcp
+uv tool install --from "git+https://github.com/johntrandall/omniplan-mcp.git@v0.3.0" omniplan-mcp
 ```
 
 Or clone and install in editable mode:
 
 ```bash
-git clone https://github.com/johntrandall/omniplan-mcp.git
+git clone --branch v0.3.0 https://github.com/johntrandall/omniplan-mcp.git
 cd omniplan-mcp
 pip install -e .
 ```
