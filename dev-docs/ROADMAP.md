@@ -117,9 +117,9 @@ async def test_omnijs_raises_on_error_envelope():
 
 Real OmniPlan, real `osascript`, against a checked-in scratch doc.
 
-- **Fixture doc:** `tests/fixtures/test-suite.oplx` — minimal document with one parent task `__test__root` that all tests write under.
-- **Pytest marker:** `@pytest.mark.requires_omniplan` — `conftest.py` skips with reason if OmniPlan isn't running.
-- **Per-test isolation:** create-marker-then-cleanup pattern. Every test creates tasks named `__test__<test_name>__<n>`; teardown deletes everything starting with `__test__`. No parallel tests (asyncio lock + GUI app makes parallelism dangerous).
+- **Fixture doc:** runs against the **front document** of the running OmniPlan process. A checked-in `tests/fixtures/test-suite.oplx` is *not* shipped in v0.1.1 — `.oplx` is a bundle of XML members that requires either a generator or a manual GUI round-trip to bootstrap (see the `omniplan-format` skill). The marker isolation below is the actual safety net; the fixture would be a clean-room nicety. **Add later** when there's a generator or when test pollution becomes a real problem.
+- **Pytest marker:** `@pytest.mark.requires_omniplan` — `tests/conftest.py` auto-skips the marked tests when OmniPlan 4 isn't running or the sandbox container is missing.
+- **Per-test isolation:** `tests/integration/conftest.py` provides a `test_root` fixture that creates `__test__root` (a Group task) on demand under the document root and cleans up by deleting *every* `__test__*` task at teardown. Tests must prefix every task they create. No parallel tests (asyncio lock + GUI app makes parallelism dangerous).
 - **What real bugs this catches:** typos in omniJS property names, deprecated API calls, OmniPlan version drift (4.10.2 vs future), edge cases in scheduling behavior.
 
 ```python

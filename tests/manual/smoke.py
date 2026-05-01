@@ -1,13 +1,21 @@
-"""
-手动集成测试：直接调用各工具函数，打印真实返回值。
-运行：python test_tools.py
-需要 OmniPlan 4 已打开并有至少一个文档。
+"""Manual smoke test for the existing v0.1.0 CRUD tools.
+
+Drives every tool against the front OmniPlan document and prints the response.
+Run with `python tests/manual/smoke.py` from the repo root, after
+`pip install -e '.[dev]'`.
+
+Requires OmniPlan 4 to be running with at least one document open and
+Automation permission granted to the terminal.
+
+Original docstring (Chinese):
+  手动集成测试：直接调用各工具函数，打印真实返回值。
 """
 import asyncio
 import json
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from omniplan_mcp.tasks import query_tasks, get_task, create_task, update_task, delete_task
 
