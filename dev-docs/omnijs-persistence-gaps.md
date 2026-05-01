@@ -76,7 +76,7 @@ accessor returns an object with no exposed `.seconds` / `.value` / `.valueOf()` 
 |---|---|---|
 | `dep.leadTimeDuration` | `Duration` | none — `String()` is `"[object Duration]"` (no value) |
 | `task.duration` | `Duration` | none |
-| `r.costPerUse` | `Decimal` | partial — `String(d)` is `"[object Decimal: 100.00]"`; we regex out the number |
+| `r.costPerUse` | `Decimal` | partial — `String(d)` is `"[object Decimal: 100]"` (note: `Decimal.fromString("100.00")` round-trips with trailing zeros collapsed); we regex `Decimal:\s*(-?[0-9.]+)` to recover the number, which works for both integer and fractional forms |
 | `actual.rootResource.schedule` | (opaque) | none — full work-week schedule is unreachable |
 
 **Note on `task.effort`:** unlike `task.duration`, `task.effort` *does* return as a
