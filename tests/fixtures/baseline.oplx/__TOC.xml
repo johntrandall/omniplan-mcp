@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<omniplan xmlns="http://www.omnigroup.com/namespace/OmniPlan/v2" file-format-version="3">
+  <window>
+    <editing-scenario>sV8fT2UiPvT</editing-scenario>
+    <view>task</view>
+    <task-view>
+      <outline>
+        <expanded-items idrefs="t-1 t1"/>
+      </outline>
+      <gantt-view/>
+    </task-view>
+    <resource-view>
+      <outline/>
+      <timeline/>
+    </resource-view>
+    <network-view/>
+    <project-outline-view/>
+  </window>
+  <project>
+    <next-task-id>2</next-task-id>
+    <next-resource-id>2</next-resource-id>
+    <scenario id="sV8fT2UiPvT" name="Actual" filename="Actual.xml"/>
+    <date-display dates="true" times="true" seconds="false"/>
+    <numbering-style>wbs</numbering-style>
+    <auto-level/>
+    <duration-format hours-per-day="8" hours-per-week="40" hours-per-month="160" hours-per-year="1920" hours="true" days="true" weeks="true"/>
+    <effort-format hours-per-day="8" hours-per-week="40" hours-per-month="160" hours-per-year="1920" hours="true" days="true" weeks="true"/>
+  </project>
+</omniplan>

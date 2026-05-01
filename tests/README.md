@@ -1,12 +1,16 @@
 # Tests
 
-Three layers, all under `pytest`:
+Per [`dev-docs/testing-policy.md`](../dev-docs/testing-policy.md). Four levels:
 
-| Layer | Where | Needs OmniPlan? | When it runs |
+| Level | Where | Needs OmniPlan? | When it runs |
 |---|---|---|---|
-| Unit | `tests/unit/` | No | Always — fast, mocks `subprocess`. |
-| Integration | `tests/integration/` | Yes (running, doc open, TCC granted) | Auto-skipped when OmniPlan isn't running. |
+| **unit** | `tests/unit/` | No | Every commit (pre-commit hook). Includes `test_vendor_docs_alignment.py` which asserts every omniJS identifier we ship is documented at <https://omni-automation.com/omniplan/>. |
+| **contract** | `tests/integration/` | Yes (running, doc open, TCC granted) | Pre-release gate. Auto-skipped when OmniPlan isn't running. |
+| **workflow** | `tests/workflow/` | Yes | Pre-release gate. Multi-tool sequences (e.g. create→link→assign→save→reopen). |
+| **e2e-live-xml** | `tests/e2e/` | Yes | Pre-release gate. One canonical write-path per tool category, with `.oplx` save → unzip → `Actual.xml` parse to confirm writes reached the model. |
 | Manual smoke | `tests/manual/smoke.py` | Yes | Run by hand: `python tests/manual/smoke.py`. Not collected by pytest. |
+
+Pre-release runs go via `scripts/pre-release-test.sh` inside the persistent `omniplan-dev` Tart VM. See the testing policy for the rationale.
 
 ## Setup
 
