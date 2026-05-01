@@ -7,11 +7,40 @@ This fork extends coverage so Claude can drive a real Gantt: dependencies, resou
 ## Prerequisites for any feature work
 
 1. **Read vendor docs first.** They live in `~/dev/zVendorDocs/OmniPlan/` (downloaded 2026-05-01):
-   - `omni-automation-website-v4.10.2-2026-05-01/` — full omniJS API reference
-   - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF (legacy AppleScript surface)
-   - `reference-manual-mac-v4.5.5-2026-05-01/` — user manual (concept reference)
+   - `omni-automation-website-v4.10.2-2026-05-01/` — partial mirror of `omni-automation.com/omniplan/`. **Only 8 top-level pages were captured** (`index.md`, `big-picture.md`, `application.md`, `setup.md`, `tutorial.md`, `actions.md`, `conference-example.md`, `conference-fetch-example.md`). Deep API pages (Tasks, Dependencies, Resources, Documents) were **not** mirrored — fetch them online from `https://omni-automation.com/omniplan/` as needed.
+   - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF + per-suite breakdowns. Authoritative for class/property names. **Use this when omniJS docs are missing.**
+   - `reference-manual-mac-v4.5.5-2026-05-01/` — user manual (concept reference for inspectors, views, terminology).
 2. **The bridge architecture is settled.** `osascript -l JavaScript` → `Application('OmniPlan').evaluateJavascript(...)` runs an omniJS string inside the running app and returns its value across the AppleEvent boundary. See `src/omniplan_mcp/jxa.py`. Don't touch this; it's the only nontrivial plumbing.
 3. **Test environment.** OmniPlan must be running with `funding-pipeline.oplx` (or another scratch doc) open. macOS Automation TCC must be granted. Use marker-prefixed task names (`__test__*`) so the cleanup pass is unambiguous. See `Testing` section.
+
+## Verified vs unverified API claims
+
+The signatures below in `Tier 0`–`Tier 2` are **a mix of verified (from existing source/SDEF) and educated guesses (from omniJS conventions in other Omni apps)**. Before implementing any feature, **verify the actual signature in OmniPlan's omniJS Console** (Automation menu → Show Console — type `app.platformName` to confirm it's live; then probe the API: `app.frontDocument.project.rootTask.addSubtask` etc.). The Console returns live values and is the ground truth.
+
+| Pattern | Source | Confidence |
+|---|---|---|
+| `task.addSubtask()` | `big-picture.md`, `conference-example.md` | **Verified** |
+| `task.descendents()` | same | **Verified** |
+| `scenario.taskNamed(name)` (note: on Scenario, **not** Document) | `big-picture.md` | **Verified** |
+| `document.save()` | `conference-example.md` | **Verified** |
+| `task.effort` / `task.effortDone` (Duration objects with `.seconds` property) | `src/omniplan_mcp/tasks.py` reads them | **Verified** for read; **unverified** for write |
+| `task.title`, `task.note`, `task.manualStartDate`, `task.manualEndDate` | source code writes them | **Verified** |
+| Dependency model: `prerequisite`, `dependent`, `dependency type`, `lead time`, `lead percentage` | `applescript-dictionary/omniplan-suite.md` (SDEF) | **Verified** for AppleScript; omniJS class/method names **unverified** |
+| `dependency types: finishstart` (and presumably `startstart`, `finishfinish`, `startfinish`) | SDEF | **Verified** |
+| `task.addDependent(other, DependencyKind.FinishStart, lag)` | **Educated guess** modeled on OmniFocus/OmniOutliner conventions | **UNVERIFIED — confirm in Console first** |
+| `Duration.seconds(N)` constructor for setting effort | **Educated guess** | **UNVERIFIED — try `task.effort = N` (raw number) first** |
+| `task.minEffortEstimate`, `expectedEffortEstimate`, `maxEffortEstimate` for three-point | **Educated guess** | **UNVERIFIED** |
+| Constraint date properties (`startNoEarlierThan`, `mustStartOn`, etc.) | SDEF has constraint-date concept; omniJS names guessed | **UNVERIFIED** |
+
+### Known API limitation
+
+**`task.parent` does NOT exist in OmniPlan's omniJS API.** Source code at `src/omniplan_mcp/tasks.py` line 27 documents this — that's why `parent_id`, `outline_id`, and `depth` are computed via traversal of `rootTask.descendents()` rather than read from the task object. Any tool that needs to know a task's parent must walk down from `rootTask`, not up from the child.
+
+### Terminology drift between omniJS and SDEF
+
+**SDEF says `lead time` and `lead percentage`; the omniJS API may use either `lead*` or `lag*` or both.** Pick the right one by inspection — and once verified, name the Python parameter to match the omniJS name (e.g., `lead_time_seconds`), not a generic name like `lag_seconds`. This avoids a translation layer between the MCP surface and the underlying API.
+
+Same caution applies to other terminology (`prerequisite`/`dependent` vs `predecessor`/`successor`, `effort` vs `duration` vs `work`). Match the omniJS names; don't invent new ones.
 
 ## Prioritized Feature TODO
 
@@ -19,17 +48,19 @@ Ordered by how badly each gap blocks "Claude as a Gantt-driver." Tier 0 must shi
 
 ### Tier 0 — Blocks usefulness (P0, ~3 days)
 
-- [ ] **Effort/duration on `create_task`.** Add `effort_seconds` (and optionally `min_effort_seconds`, `expected_effort_seconds`, `max_effort_seconds` for three-point estimation). Currently every task defaults to 8h with no override.
-- [ ] **Effort/duration on `update_task`.** Same fields. Empty string clears.
-- [ ] **Dependencies — create.** New tool `add_dependency(predecessor_id, successor_id, kind="FS"|"SS"|"FF"|"SF", lag_seconds=0)`. omniJS API: `task.addDependent(otherTask, DependencyKind.FinishStart, lag)`. Without this, output is a list, not a Gantt.
-- [ ] **Dependencies — remove.** `remove_dependency(predecessor_id, successor_id)`. omniJS: iterate `task.dependents`, find match, `.remove()`.
-- [ ] **Dependencies — list.** `list_dependencies(task_id?)` returns `[{predecessor_id, successor_id, kind, lag_seconds}]`. If no `task_id`, returns the whole document.
-- [ ] **`find_task` by name.** `find_task(name, exact=False) -> [{id, title, outline_id}]`. Wraps omniJS `document.taskNamed(name)` plus a regex/substring fallback. Removes the "list → grep → use ID" pattern.
-- [ ] **`save_document(document_name?)`.** Verify autosave behavior first — OmniPlan 4 may or may not autosave depending on file scheme (local vs iCloud). Ship explicit save regardless for "commit now" semantics.
+> **All API examples below are starting points, not specifications.** Confirm each in the omniJS Console (Automation → Show Console) before coding. See "Verified vs unverified API claims" above.
+
+- [ ] **Effort/duration on `create_task`.** Add `effort_seconds: int | None`. Try `task.effort = N` (raw integer seconds — match how the existing read code treats `task.effort`) first; fall back to `Duration.seconds(N)` factory if the property is read-only or strongly typed. Optionally expose `min_effort_seconds`, `expected_effort_seconds`, `max_effort_seconds` for three-point estimation **if** the corresponding properties exist (probe in Console: `task.minEffortEstimate` etc. — name is unverified).
+- [ ] **Effort/duration on `update_task`.** Same fields as above. Empty string clears.
+- [ ] **Dependencies — create.** New tool `add_dependency(predecessor_id, successor_id, kind="FS"|"SS"|"FF"|"SF", lead_time_seconds=0)`. **Note the parameter is `lead_time_seconds`, matching SDEF terminology.** Try omniJS `task.addDependent(otherTask, DependencyKind.FinishStart, leadTimeSeconds)` first; if that signature doesn't exist, fall back to `new Dependency(...)` constructor or whatever the Console reveals. The SDEF `depend X upon Y` AppleScript command is the absolute fallback. Without this feature, the MCP outputs a list, not a Gantt.
+- [ ] **Dependencies — remove.** `remove_dependency(predecessor_id, successor_id) -> {removed: bool}`. omniJS approach (unverified): iterate `task.dependents` (or `task.prerequisites`), find match by counterpart task ID, call `.remove()` on the dependency object.
+- [ ] **Dependencies — list.** `list_dependencies(task_id?) -> [{predecessor_id, successor_id, kind, lead_time_seconds}]`. Property names on the dependency object are **unverified** — likely `prerequisiteTask` and `dependentTask` per SDEF, possibly `predecessor`/`successor` per common conventions. Confirm and conform to the omniJS names.
+- [ ] **`find_task` by name.** `find_task(name: str, exact: bool = False) -> [{id, title, outline_id}]`. For `exact=True`: try `scenario.taskNamed(name)` (**Verified** location: on Scenario, not Document — `actual.taskNamed(...)` per `big-picture.md`). For `exact=False`: walk `rootTask.descendents()` and substring-match. Removes the "list → grep → use ID" pattern.
+- [ ] **`save_document(document_name?) -> {saved: bool}`.** **First, verify autosave behavior** by editing a task via MCP and checking whether the change persists across an OmniPlan quit-and-reopen. Document the answer here in this file. Then ship explicit save: `document.save()` is **Verified** to exist (per `conference-example.md`). The argument shape (no args vs file URL) is unverified.
 
 ### Tier 1 — Real planning tool (P1, ~3 days)
 
-- [ ] **Constraint dates on `update_task`.** Add `start_no_earlier_than`, `start_no_later_than`, `end_no_earlier_than`, `end_no_later_than`, `must_start_on`, `must_end_on`. ISO date strings; empty clears. Critical for "this is locked because external dependency."
+- [ ] **Constraint dates on `update_task`.** SDEF documents constraint dates (start-after, end-before, etc.). The Python parameter names below are illustrative — **match the actual omniJS property names** once you read them off `task` in the Console. Likely candidates: `startNoEarlierThan`, `startNoLaterThan`, `endNoEarlierThan`, `endNoLaterThan`, `mustStartOn`, `mustEndOn`. ISO date strings; empty clears. Critical for "this is locked because external dependency."
 - [ ] **`get_project_info()`** — returns `{name, start_date, end_date, currency, working_hours, scenarios[]}`.
 - [ ] **`update_project(...)`** — start date, currency, default working hours.
 - [ ] **`move_task(task_id, new_parent_id?, after_sibling_id?)`** — restructure outline mid-session.

@@ -9,10 +9,12 @@ MCP server for [OmniPlan 4](https://www.omnigroup.com/omniplan) on macOS. Manage
 - **[Omni Automation API for OmniPlan](https://omni-automation.com/omniplan/index.html)** — the canonical omniJS reference. The bridge in [`src/omniplan_mcp/jxa.py`](src/omniplan_mcp/jxa.py) wraps `Application('OmniPlan').evaluateJavascript(...)` so every tool is a small omniJS snippet against this API.
 - **[Omni Automation JXA/AppleScript bridge](https://omni-automation.com/jxa-applescript.html)** — describes the `evaluateJavascript` AppleEvent we use.
 - **OmniPlan AppleScript dictionary (SDEF)** — `/Applications/OmniPlan.app/Contents/Resources/OmniPlan.sdef` (~1450 lines). Legacy surface but still authoritative for class/property names.
-- **Local vendor-docs mirror** (this Mac, John's setup) — full offline copies under [`~/dev/zVendorDocs/OmniPlan/`](file:///Users/johnrandall/dev/zVendorDocs/OmniPlan/):
-  - `omni-automation-website-v4.10.2-2026-05-01/` — full omniJS site mirror
-  - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF
-  - `reference-manual-mac-v4.5.5-2026-05-01/` — OmniPlan user manual
+- **Local vendor-docs mirror** (this Mac, John's setup) — partial offline copies under [`~/dev/zVendorDocs/OmniPlan/`](file:///Users/johnrandall/dev/zVendorDocs/OmniPlan/):
+  - `omni-automation-website-v4.10.2-2026-05-01/` — **only 8 top-level pages** (index, big-picture, application, setup, tutorial, actions, conference-example, conference-fetch-example). Deep API pages (Tasks/Dependencies/Resources/Documents) were **not** mirrored — fetch from `https://omni-automation.com/omniplan/` online when needed.
+  - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF + per-suite breakdown. Authoritative for class/property names. **Use as fallback when omniJS docs are missing.**
+  - `reference-manual-mac-v4.5.5-2026-05-01/` — OmniPlan user manual (concept reference for views, inspectors, terminology).
+
+See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) "Verified vs unverified API claims" for which omniJS signatures are confirmed vs. educated guesses.
 
 ## Requirements
 
