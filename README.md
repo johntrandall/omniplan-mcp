@@ -2,7 +2,7 @@
 
 MCP server for [OmniPlan 4](https://www.omnigroup.com/omniplan) on macOS. Manage your project tasks with natural language via Claude or any MCP-compatible client.
 
-> **This is johntrandall's active fork** of [xiahan4956/omniplan-mcp](https://github.com/xiahan4956/omniplan-mcp). Upstream ships 6 task-CRUD tools and is the right architectural foundation; this fork extends coverage so Claude can drive a full Gantt (dependencies, resources, leveling, baselines, scheduling). See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for the prioritized feature list and order of operations. PRs are sent upstream per the [`fix-upstream`](https://github.com/johntrandall) workflow; this fork is the daily driver until they land.
+> **This is johntrandall's active fork** of [xiahan4956/omniplan-mcp](https://github.com/xiahan4956/omniplan-mcp). Upstream shipped 6 task-CRUD tools as v0.1.0; this fork is at **v0.3.0** with **17 tools** and adds dependencies, three-point estimates, name lookup, project info, bulk creation, resource CRUD, and explicit save. See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for the full roadmap and [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md) for the omniJS limitations we hit and the sentinel tests that watch for fixes. PRs are sent upstream as features ship; this fork is the daily driver until they merge.
 
 ## Reference material
 
@@ -25,16 +25,24 @@ See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) "Verified vs unverified API cla
 
 ## Installation
 
+This fork (`v0.3.0`, 17 tools):
+
 ```bash
-pip install git+https://github.com/xiahan4956/omniplan-mcp.git
+uv tool install --from git+https://github.com/johntrandall/omniplan-mcp.git omniplan-mcp
 ```
 
 Or clone and install in editable mode:
 
 ```bash
-git clone https://github.com/xiahan4956/omniplan-mcp.git
+git clone https://github.com/johntrandall/omniplan-mcp.git
 cd omniplan-mcp
 pip install -e .
+```
+
+Upstream baseline (`v0.1.0`, 6 tools):
+
+```bash
+pip install git+https://github.com/xiahan4956/omniplan-mcp.git
 ```
 
 ### Grant Automation Permission
@@ -101,6 +109,25 @@ All tools accept an optional `document_name` parameter. If omitted, the frontmos
 ### update_task parameters
 
 Pass only the fields you want to change. Set `completed: true` to mark a task done, or `color: "clear"` to reset the bar color.
+
+## Known omniJS limitations
+
+OmniPlan 4.10.2's omniJS surface has several gaps that block features cleanly written
+against the `evaluateJavascript` bridge. We document them in
+[`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md) and ship
+`xfail(strict=True)` sentinel tests that go RED if OmniGroup fixes them.
+
+Short version:
+
+| Gap | Affects |
+|---|---|
+| Constraint dates (`startConstraintDate` etc.) — write inline succeeds, value lost across calls | `update_task` constraint fields not exposed |
+| `dep.leadTimeDuration` — `Duration` is opaque on read | `list_dependencies` returns `lead_time_seconds: null` |
+| `assignment.units` — write doesn't persist across calls | `assign_resource` echoes input but can't round-trip |
+| `actual.currency` — same persistence trap | omitted from `update_project` |
+| No `task.moveTo` / `reparent` | `move_task` not implemented |
+| No `proj.scenarios` enumeration | `get_project_info` reports `["Actual"]` only |
+| `r.costPerUse` is opaque `Decimal` on read | parse `String(d)` to recover value (handled internally) |
 
 ## Example Prompts
 
