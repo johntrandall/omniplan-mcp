@@ -143,5 +143,6 @@ existing integration tests with their assertions tightened would surface a fix.
 5. **Expose `proj.scenarios` enumeration.** Even read-only would let us list and
    compare baselines properly.
 
-Email sent to `omniplan@omnigroup.com` 2026-05-01 referencing this document. See
-`dev-docs/TODO.md` for the response-check follow-up.
+Email **drafted** to `omniplan@omnigroup.com` 2026-05-01 referencing this document
+(Gmail draft `r-9007395370526708366`, **not yet sent** — pending John's review and
+Send). See [`TODO.md`](TODO.md) for the response-check follow-up.
