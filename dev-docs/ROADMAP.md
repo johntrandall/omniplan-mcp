@@ -16,7 +16,7 @@ This fork extends coverage so Claude can drive a real Gantt: dependencies, resou
 | Tier | Status | Date |
 |---|---|---|
 | Tier 0 | Shipped — `v0.2.0` | 2026-05-01 |
-| Tier 1 | Shipped (with two BLOCKED items, sentinels in place) — `v0.3.0` | 2026-05-01 |
+| Tier 1 | Shipped — `v0.3.0` (one real gap: `move_task`, sentinel in place) | 2026-05-01 |
 | Tier 2 | Not started | — |
 | Tier 3 | Not started | — |
 
@@ -62,9 +62,12 @@ found to be missing or broken, see [`omnijs-persistence-gaps.md`](omnijs-persist
 ### Known omniJS API limitations
 
 - **`task.parent` does NOT exist.** Documented in `src/omniplan_mcp/tasks.py` line 27. Parent IDs are computed via traversal of `rootTask.descendents()`, not read off the task.
-- **Persistence gaps** (write inline, lost across calls): `task.startConstraintDate`/`startBeforeDate`/`endAfterDate`/`endBeforeDate`, `dep.leadTimeDuration`, `assignment.units`, `actual.currency`. See gaps doc.
-- **Read-opaque objects**: `Duration` (no `.seconds` accessor), `Decimal` (parse `toString` for the value), `actual.rootResource.schedule` (fully opaque).
-- **Missing methods**: no `task.moveTo` / `insertAfter` / `reparent`. No `proj.scenarios` enumeration.
+- **Missing methods**: no `task.moveTo` / `insertAfter` / `reparent` / `subtasks.push(...)` / `task.parent =` assignment (verified by three failed paths plus `Actual.xml` cross-check). See gaps doc.
+- **`Decimal` read parsing**: no documented number-extraction accessor; `String(d)` regex-parsed in `resources.py`. See gaps doc.
+- **Currency on `actual`**: write accepted inline, doesn't persist across calls (probed only — may be a real gap, but currency editing is low-value so we skipped it rather than shipping a footgun).
+- **`actual.rootResource.schedule`**: opaque on read; working-hours editing deferred.
+
+The earlier draft of this section listed several other "persistence gaps" that turned out to be us probing under SDEF AppleScript names instead of the documented omniJS names. See [`omnijs-persistence-gaps.md`](omnijs-persistence-gaps.md) §3 for the corrected entries (`startNoEarlierThanDate`, `leadTimeDuration.workSeconds`, `unitsAssigned`, `baselineNames`).
 
 ### Terminology
 
@@ -81,15 +84,15 @@ Ordered by how badly each gap blocks "Claude as a Gantt-driver." Tier 0 must shi
 - [x] **`find_task(name, exact=False)`** — case-insensitive substring or exact-match lookup. (PR #3.)
 - [x] **`save_document()`** — autosave verified absent (`document.modified()` stays `true` for ≥10s after an edit). (Branch `feat/save-document`.)
 
-### Tier 1 — Shipped in v0.3.0 (with two BLOCKED items)
+### Tier 1 — Shipped in v0.3.0 (one real gap)
 
-- [ ] **Constraint dates on `update_task`.** BLOCKED — `xfail(strict=True)` sentinel at `tests/integration/test_constraints.py`. See [`omnijs-persistence-gaps.md`](omnijs-persistence-gaps.md) §1 for the failure mode and what we'd need from OmniGroup.
-- [x] **`get_project_info()`** (PR #6) — returns `{name, path, start_date, end_date, scenarios}`. `currency` and `working_hours` deferred (write doesn't persist; schedule object is opaque).
-- [x] **`update_project(start_date)`** (PR #6) — `actual.startDate` write verified persistent. Currency rejected from API.
-- [ ] **`move_task`.** BLOCKED — `xfail(strict=True)` sentinel at `tests/integration/test_move_task.py`. omniJS Task class exposes no move/reparent/insertAfter/insertBefore methods. See gaps doc §3.
+- [x] **Constraint dates on `update_task`.** Shipped via `start_no_earlier_than` / `start_no_later_than` / `end_no_earlier_than` / `end_no_later_than` params using the documented omniJS names (`startNoEarlierThanDate` etc.). Round-trip verified in `tests/integration/test_constraints.py`. The earlier draft of this roadmap marked this BLOCKED based on probing under SDEF names — see [`omnijs-persistence-gaps.md`](omnijs-persistence-gaps.md) §3.
+- [x] **`get_project_info()`** (PR #6) — returns `{name, path, start_date, end_date, scenarios}`. `scenarios` enumerates `Actual` plus `proj.baselineNames`. `currency` and `working_hours` deferred.
+- [x] **`update_project(start_date)`** (PR #6) — `actual.startDate` write verified persistent. Currency omitted (write doesn't persist across calls).
+- [ ] **`move_task`.** BLOCKED — `xfail(strict=True)` sentinel at `tests/integration/test_move_task.py`. omniJS Task class exposes no move/reparent/insertAfter/insertBefore method, `subtasks.push(...)` is a silent no-op, and `task.parent = ...` doesn't reach the model (verified by saved-bundle XML cross-check). See gaps doc §1.
 - [x] **`create_tasks(tasks: list[dict])`** (PR #7) — bulk creation in a single JXA call. Adds `parent_index` field for intra-batch parent references.
 - [x] **Resource CRUD.** `list_resources`, `create_resource(name, type, email?, cost_per_use?)`, `delete_resource(id)` (PR #8).
-- [x] **Assignments.** `assign_resource(task_id, resource_id, units?)`, `unassign_resource(task_id, resource_id)` (PR #8). `units` is write-only; see gaps doc.
+- [x] **Assignments.** `assign_resource(task_id, resource_id, units?)`, `unassign_resource(task_id, resource_id)`, `list_assignments(task_id)` (PR #8, PR #9). `units` round-trips via `assignment.unitsAssigned`.
 
 ### Tier 2 — Expert features (P2, ~3 days)
 

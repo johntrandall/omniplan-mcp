@@ -1,148 +1,139 @@
-# OmniPlan omniJS Persistence Gaps
+# OmniPlan omniJS Surface Gaps
 
-**Verified empirically against OmniPlan 4.10.2 (build 24G419) on macOS 15.7.3, 2026-05-01.**
+**Verified empirically against OmniPlan 4.10.2 (build 232.5.0) on macOS 15.7.3, 2026-05-01.**
 
 This document catalogues every property/method on the omniJS surface that this fork
-probed and found to behave incorrectly under the standard
-`Application('OmniPlan').evaluateJavascript(...)` bridge that `src/omniplan_mcp/jxa.py`
-uses. They fall into three categories:
+probed and found to be missing or inadequate under the standard
+`Application('OmniPlan').evaluateJavascript(...)` bridge in `src/omniplan_mcp/jxa.py`.
 
-1. **Persistence gaps** — write succeeds inline (within a single `evaluateJavascript`
-   call) but the value vanishes on the next call.
-2. **Read opacity** — value is set correctly and persists, but the read returns an
-   opaque object with no accessor that exposes its content.
-3. **Missing methods** — the SDEF AppleScript surface has the operation but the omniJS
-   class surface lacks an equivalent method.
+After cross-referencing the canonical class docs at <https://omni-automation.com/omniplan/>
+and probing every documented setter, the surface is much smaller than an earlier
+draft of this doc claimed. **Most of the "persistence gaps" reported in earlier
+drafts were us probing under SDEF AppleScript names that don't exist on the omniJS
+classes.** The surviving gaps are limited to:
 
-All three classes block features cleanly written against omniJS. Where a workaround
-exists in another bridge (JXA SDEF specifiers via `app.documents()[0].project...`) it
-is noted, but the workaround is intentionally **out of scope for this fork** — the
-`jxa.py` bridge is settled and dedicated to omniJS.
+1. One missing method (task reparenting) — confirmed via three failed paths plus
+   a saved-bundle XML inspection.
+2. One read-side wart (`Decimal.toString` requires regex parsing) — there's no
+   documented number-extraction accessor.
 
-When OmniGroup ships a release that closes any of these gaps, the corresponding
-`pytest.mark.xfail(strict=True)` sentinel test goes RED, alerting us to revive the
-implementation.
+When OmniGroup ships a release that closes either gap, the corresponding
+`pytest.mark.xfail(strict=True)` sentinel test goes RED.
 
 ---
 
-## 1. Persistence gaps (write inline, lost across calls)
+## 1. Missing methods (no omniJS equivalent for SDEF operations)
 
-The pattern: `obj.prop = value` succeeds without throwing, and reading `obj.prop`
-later in the *same* `evaluateJavascript` call returns the value. But on the next
-JXA invocation, `typeof obj.prop === 'undefined'` again. The control case
-`task.manualStartDate` rules out a generic Date / serialization / evaluator-context
-issue — manual dates persist correctly.
+| Operation | SDEF | omniJS | Branch / sentinel |
+|---|---|---|---|
+| Move task to new parent / sibling | `move` (NSMoveCommand) | none — no `moveTo` / `insertAfter` / `reparent` / `appendTo` / `prependTo` / `subtasks.push(...)` mutation / `task.parent = ...` assignment | `feat/move-task` — `tests/integration/test_move_task.py::test_move_task_method_exists` |
 
-| Property / API | Class | Probed | Branch | Status |
-|---|---|---|---|---|
-| `task.startConstraintDate` | Task | 2026-05-01 | `feat/constraints` | xfail sentinel |
-| `task.startBeforeDate` | Task | 2026-05-01 | `feat/constraints` | xfail sentinel |
-| `task.endAfterDate` | Task | 2026-05-01 | `feat/constraints` | xfail sentinel |
-| `task.endBeforeDate` | Task | 2026-05-01 | `feat/constraints` | xfail sentinel |
-| `dep.leadTimeDuration` | Dependency | 2026-05-01 | `feat/dependencies` | accepted on write, returns `null` on read |
-| `assignment.units` | Assignment | 2026-05-01 | `feat/resources` | accepted on write, returns `null` on read |
-| `actual.currency` | Scenario | 2026-05-01 | `feat/project-info` | omitted from `update_project` |
-
-**Hypothesis:** these properties have SDEF-bound setters (cocoa key prefix `script*`)
-that the AppleScript bridge wires through, but the omniJS surface synthesizes them as
-ad-hoc JS object properties at evaluation time. The assignment lands on the JS object,
-not the underlying OmniPlan model, so it disappears with the JS context.
-
-**Verification recipe (general):**
+**How we verified:** three failure paths, all silent no-ops on the omniJS side.
 
 ```javascript
-// step 1, in one evaluateJavascript call:
-const t = document.project.actual.rootTask.addSubtask();
-t.title = '__probe__';
-t.startConstraintDate = new Date(2027, 0, 1);
-const id = String(t.uniqueID);
-// returns id
+// (1) named methods — none exist on Task.prototype
+typeof task.moveTo;       // 'undefined'
+typeof task.reparent;     // 'undefined'
+typeof task.insertAfter;  // 'undefined'
 
-// step 2, in a SECOND evaluateJavascript call:
-const t = /* re-find by id via descendents() */;
-typeof t.startConstraintDate;  // → 'undefined'   ← the bug
-typeof t.manualStartDate;      // → 'object'      ← control case
+// (2) subtasks-array mutation — push returns ok, model unchanged
+B.subtasks.push(C);              // returns truthy
+A.subtasks.length;               // unchanged across calls
+B.subtasks.map(t => t.title);    // does not include C
+
+// (3) parent assignment — silent no-op on both names
+D.parent = B;       // no throw
+D.parentTask = B;   // no throw
+typeof D.parent;    // 'undefined'  (still no parent accessor)
 ```
 
+We also saved the document to a `.oplx` bundle and confirmed `Actual.xml` shows
+the original parent in `<child-task idref="...">` after every probe — i.e. the
+attempts never reach the underlying model.
+
+The SDEF AppleScript bridge does expose a `move` command (NSMoveCommand) for
+tasks. Reaching it requires a parallel JXA SDEF bridge separate from
+`evaluateJavascript`, which is **out of scope for this fork**.
+
+**Clone-and-replace doesn't substitute for a real move:** copying properties to
+a new task and removing the old one would change `uniqueID`, silently breaking
+every dependency, assignment, and ID reference made against the old task.
+
 ---
 
-## 2. Read opacity (writes persist, reads return opaque objects)
+## 2. Read-side opacity workarounds
 
-The value is set correctly and the underlying model retains it. But the omniJS
-accessor returns an object with no exposed `.seconds` / `.value` / `.valueOf()` /
-`Number()` / `JSON.stringify()` path that recovers the numeric content.
-
-| Property / API | Returns | Workaround |
+| Property / API | Returns | Workaround in this fork |
 |---|---|---|
-| `dep.leadTimeDuration` | `Duration` | none — `String()` is `"[object Duration]"` (no value) |
-| `task.duration` | `Duration` | none |
-| `r.costPerUse` | `Decimal` | partial — `String(d)` is `"[object Decimal: 100]"` (note: `Decimal.fromString("100.00")` round-trips with trailing zeros collapsed); we regex `Decimal:\s*(-?[0-9.]+)` to recover the number, which works for both integer and fractional forms |
-| `actual.rootResource.schedule` | (opaque) | none — full work-week schedule is unreachable |
+| `r.costPerUse` | `Decimal` | `String(d)` is `"[object Decimal: 100]"`. We regex `Decimal:\s*(-?[0-9.]+)` to recover the number. **Note:** `Decimal.fromString("100.00")` round-trips with trailing zeros collapsed, so `100.00` reads back as `100`. The documented `Decimal` class has `add` / `subtract` / `multiply` / `divide` / `compare` / `equals` / `toString` — no number-extraction accessor. |
 
-**Note on `task.effort`:** unlike `task.duration`, `task.effort` *does* return as a
-plain Number (verified). We don't know why these two diverge; they may have different
-cocoa accessor implementations.
+`Duration` is **not** opaque. The documented accessors `workSeconds`,
+`elapsedSeconds`, `elapsedDays`, `elapsed` (Boolean), and friends round-trip
+correctly. An earlier draft of this doc claimed `Duration` was opaque — that was
+us probing for a `.seconds` accessor (which doesn't exist) and never trying
+`workSeconds` (which does). `add_dependency` / `list_dependencies` now round-trip
+`lead_time_seconds` via `Duration.workSeconds`.
 
----
-
-## 3. Missing methods (no omniJS equivalent for SDEF operations)
-
-| Operation | SDEF | omniJS | Branch | Status |
-|---|---|---|---|---|
-| Move task to new parent / sibling | `move` (NSMoveCommand) | none — no `moveTo` / `insertAfter` / `reparent` / `appendTo` / `prependTo` | `feat/move-task` | xfail sentinel |
-| Enumerate all scenarios | `<element type="scenario"/>` | none — `proj.scenarios` is undefined | `feat/project-info` | reported as `["Actual"]` only |
-
-**Why we don't fall back to SDEF for `move_task`:** a direct probe of
-`app.documents()[0].project.tasks()` returned references whose `.title()` accessor
-failed in a fresh JXA session. Either the SDEF tasks collection is keyed by something
-other than what we tried, or it's not safely reachable. Diagnosing further would
-require building the parallel SDEF bridge — out of scope.
-
-**Clone-and-replace doesn't work either:** copying properties into a new task and
-removing the old one would change the task's `uniqueID`, silently breaking every
-dependency, assignment, and ID reference made against the old task.
+`actual.rootResource.schedule` is genuinely opaque on read in the omniJS surface
+(no accessor returns the day/time-span structure), but writes are also unsupported,
+so we deferred working-hours editing rather than shipping a half-feature.
 
 ---
 
-## Tools that exposed the gap during implementation
+## 3. Properties that actually round-trip (debunked claims)
 
-| Tool | Affected | How we shipped |
+These were reported as broken in earlier drafts of this doc and the README. Each
+was re-probed under the **documented** omniJS class name and verified to
+round-trip across separate `evaluateJavascript` calls:
+
+| Earlier claim | Reality |
+|---|---|
+| `task.startConstraintDate` "value lost across calls" | Wrong name. Documented name is `task.startNoEarlierThanDate` (Date or null). Round-trips correctly. Tier 1 `update_task` now exposes it along with `startNoLaterThanDate` / `endNoEarlierThanDate` / `endNoLaterThanDate`. |
+| `dep.leadTimeDuration` "Duration is opaque on read" | Wrong probe. `dep.leadTimeDuration.workSeconds` returns the integer seconds. Round-trips. |
+| `assignment.units` "write doesn't persist" | Wrong name. Documented setter is `assignment.unitsAssigned` (Number, read/write). Round-trips. |
+| `actual.currency` "same persistence trap" | Inconclusive. Write accepted inline, but the value does not persist across `evaluateJavascript` boundaries. May be a real gap — but we did not pursue it further because currency editing is low-value and we don't have a confident probe matrix yet. Currency is omitted from `update_project` rather than shipping a footgun. |
+| `proj.scenarios` "undefined" | Wrong API. Documented enumeration is `proj.baselineNames` (Array of String), with `proj.baselineNamed(name)` for lookup. `get_project_info` now returns `scenarios: ["Actual", ...proj.baselineNames]`. |
+
+**Methodology for the corrections:** read the canonical class docs at
+<https://omni-automation.com/omniplan/{tasks,dependencies,assignments,projects,scenarios,duration}.html>;
+probe each setter under the documented name; for date fields, control with
+`task.manualStartDate` (known to round-trip) using identical input; cross-check
+with the saved `.oplx` `Actual.xml` to confirm writes actually reach the
+underlying model.
+
+---
+
+## What we asked OmniGroup
+
+Email sent 2026-05-01 to `omniplan@omnigroup.com` (Gmail message ID
+`19de54f80526a865`), subject "OmniPlan 4.10.2 omniJS — two small documented gaps
+(task reparent, Decimal accessor)". Two questions:
+
+1. Is task reparenting deliberately omitted from the omniJS Task class, or
+   should we use a method we missed?
+2. Is there a documented accessor on `Decimal` to extract a Number, or is
+   `String(d)` parsing the supported path?
+
+A status check is scheduled via the Anthropic Cloud routine
+`trig_019hMu6Mpt1sAWwLhA64n5kQ` for 2026-05-22.
+
+---
+
+## Lessons (cross-cutting — captured for future work)
+
+This doc went through ~9 wrong drafts before the surface settled. The mistakes
+clustered into one anti-pattern: **probing under SDEF property names instead of
+reading the documented omniJS class.** SDEF and omniJS are two surfaces with
+overlapping but distinct vocabularies. Examples we tripped on:
+
+| SDEF name | omniJS name | What we shipped after the fix |
 |---|---|---|
-| `add_dependency` | `lead_time_seconds` | Accepts and writes via `Duration.workSeconds(N)`; `list_dependencies` returns `lead_time_seconds: null`. |
-| `assign_resource` | `units` | Accepts and echoes the input; reads return null. |
-| `update_project` | `currency`, working hours | Currency rejected from API surface. Working hours deferred. |
-| `update_task` | constraint dates | `xfail` sentinel only; not on the public API. |
-| `move_task` | (entire feature) | Not implemented; `xfail` sentinel only. |
+| `start constraint date` | `startNoEarlierThanDate` | `update_task(start_no_earlier_than=...)` |
+| `lead time` | `leadTimeDuration` (with `.workSeconds` accessor) | `add_dependency(lead_time_seconds=...)` round-trips |
+| `units` | `unitsAssigned` (on Assignment) | `assign_resource(units=...)` round-trips |
+| `scenarios` (collection of scenario) | `baselineNames` (Array of String) on Project | `get_project_info` returns real list |
 
----
-
-## Sentinels (`pytest.mark.xfail(strict=True)`)
-
-These tests go **RED** the day OmniGroup closes a gap. Reviving the corresponding
-implementation should be the first step when that happens.
-
-- `tests/integration/test_constraints.py::test_constraint_dates_persist_across_calls`
-- `tests/integration/test_move_task.py::test_move_task_method_exists`
-
-`lead_time_seconds`, `assignment.units`, and `currency` don't have dedicated
-sentinels — they're documented in the relevant module docstrings, and re-running the
-existing integration tests with their assertions tightened would surface a fix.
-
----
-
-## What we'd need from OmniGroup
-
-1. **Persist constraint dates through omniJS.** `task.startConstraintDate` etc. should
-   either persist across `evaluateJavascript` calls (writes land on the model) or
-   throw on assignment if they're truly read-only.
-2. **Expose Duration / Decimal accessors.** A `.seconds` getter on `Duration` and a
-   `.toFloat()` (or similar) on `Decimal` would unblock several round-trip reads.
-3. **Add `task.moveTo(newParent, beforeSibling?)` or equivalent.** No outline editor
-   without it.
-4. **Fix `assignment.units` persistence.** Same shape as constraint dates.
-5. **Expose `proj.scenarios` enumeration.** Even read-only would let us list and
-   compare baselines properly.
-
-Email **drafted** to `omniplan@omnigroup.com` 2026-05-01 referencing this document
-(Gmail draft `r-9007395370526708366`, **not yet sent** — pending John's review and
-Send). See [`TODO.md`](TODO.md) for the response-check follow-up.
+The `troubleshooting-sanity` skill (in `~/.claude/skills/`) captures the broader
+methodology that fell out of this episode: read the vendor's class docs first,
+verify writes landed (don't infer from read failures), and isolate before
+escalating bug claims.

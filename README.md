@@ -115,22 +115,18 @@ Pass only the fields you want to change. Set `completed: true` to mark a task do
 
 ## Known omniJS limitations
 
-OmniPlan 4.10.2's omniJS surface has several gaps that block features cleanly written
-against the `evaluateJavascript` bridge. We document them in
-[`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md) and ship
-`xfail(strict=True)` sentinel tests that go RED if OmniGroup fixes them.
-
-Short version:
+After cross-referencing the canonical class docs at
+<https://omni-automation.com/omniplan/> and re-probing under documented names, the
+real gaps are smaller than an earlier draft of this README claimed. We document
+them in [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md)
+and ship `xfail(strict=True)` sentinel tests that go RED if OmniGroup fixes them.
 
 | Gap | Affects |
 |---|---|
-| Constraint dates (`startConstraintDate` etc.) — write inline succeeds, value lost across calls | `update_task` constraint fields not exposed |
-| `dep.leadTimeDuration` — `Duration` is opaque on read | `list_dependencies` returns `lead_time_seconds: null` |
-| `assignment.units` — write doesn't persist across calls | `assign_resource` echoes input but can't round-trip |
-| `actual.currency` — same persistence trap | omitted from `update_project` |
-| No `task.moveTo` / `reparent` | `move_task` not implemented |
-| No `proj.scenarios` enumeration | `get_project_info` reports `["Actual"]` only |
-| `r.costPerUse` is opaque `Decimal` on read | parse `String(d)` to recover value (handled internally) |
+| No `task.moveTo` / `reparent` (verified by three failed paths plus saved-bundle XML) | `move_task` not implemented; sentinel at `tests/integration/test_move_task.py` |
+| `r.costPerUse` is `Decimal` with no documented number-extraction accessor | `resources.py` regex-parses `String(d)` to recover the value (internal) |
+| `actual.currency` — write doesn't persist across calls (probed only) | omitted from `update_project` |
+| `actual.rootResource.schedule` opaque on read | working-hours editing deferred |
 
 ## Example Prompts
 

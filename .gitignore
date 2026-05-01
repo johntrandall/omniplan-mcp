@@ -8,3 +8,4 @@ build/
 *.egg
 .claude/
 .pytest_cache/
+dev-docs/drafts/

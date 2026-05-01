@@ -6,6 +6,22 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 
 ## [Unreleased]
 
+### Added
+- `update_task` accepts `start_no_earlier_than`, `start_no_later_than`,
+  `end_no_earlier_than`, and `end_no_later_than` (ISO date strings, or
+  empty string to clear). `get_task` surfaces them under the same names.
+  Maps to the documented omniJS `task.startNoEarlierThanDate` /
+  `startNoLaterThanDate` / `endNoEarlierThanDate` / `endNoLaterThanDate`
+  setters. Round-trip verified live in
+  `tests/integration/test_constraints.py` (4 tests, all passing).
+  Earlier drafts of this fork's docs marked constraint dates as
+  "BLOCKED — value lost across calls"; that was us probing under SDEF
+  property names (`startConstraintDate` etc.) that don't exist on the
+  omniJS Task class. The documented names work as expected.
+- `list_assignments(task_id) -> [{resource_id, resource_name,
+  units_assigned}]` — exposes per-task assignment info that
+  `list_resources` doesn't cover.
+
 ### Fixed
 - `list_dependencies` and `add_dependency` now round-trip
   `lead_time_seconds` via the documented `Duration.workSeconds`
@@ -23,10 +39,16 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
   hard-coded `["Actual"]`. The documented Project class exposes
   `baselineNames` (Array of String) plus `baselineNamed(name)`.
 
-### Added
-- `list_assignments(task_id) -> [{resource_id, resource_name,
-  units_assigned}]` — exposes per-task assignment info that
-  `list_resources` doesn't cover.
+### Docs
+- Rewrote `dev-docs/omnijs-persistence-gaps.md` from scratch. Earlier
+  drafts asserted ~6 "persistence gaps" as facts; on doc re-read those
+  were us probing under SDEF AppleScript names (`startConstraintDate`,
+  `assignment.units`, etc.) that the omniJS classes don't expose under
+  those names. The corrected doc lists only the surviving gaps: missing
+  `task.moveTo` / reparenting (verified by three failed paths plus
+  saved-bundle XML cross-check), and the `Decimal.toString` regex parse
+  workaround. README "Known omniJS limitations" table aligned. ROADMAP
+  Tier 1 status updated — constraints flipped from BLOCKED to shipped.
 
 ## [0.3.0] - 2026-05-01
 

@@ -72,6 +72,10 @@ function taskToObj(task, summary) {
     obj.manual_end_date = fmtDate(task.manualEndDate);
     obj.effort_seconds = effort;
     obj.effort_done_seconds = effortDone;
+    obj.start_no_earlier_than = fmtDate(task.startNoEarlierThanDate);
+    obj.start_no_later_than = fmtDate(task.startNoLaterThanDate);
+    obj.end_no_earlier_than = fmtDate(task.endNoEarlierThanDate);
+    obj.end_no_later_than = fmtDate(task.endNoLaterThanDate);
   }
 
   return obj;
@@ -436,6 +440,10 @@ async def update_task(
     min_effort_seconds: Optional[int] = None,
     expected_effort_seconds: Optional[int] = None,
     max_effort_seconds: Optional[int] = None,
+    start_no_earlier_than: Optional[str] = None,
+    start_no_later_than: Optional[str] = None,
+    end_no_earlier_than: Optional[str] = None,
+    end_no_later_than: Optional[str] = None,
 ) -> str:
     """Update an existing task. Only provided fields are changed.
 
@@ -451,6 +459,14 @@ async def update_task(
         min_effort_seconds: Three-point estimation minimum (person-seconds).
         expected_effort_seconds: Three-point estimation expected value.
         max_effort_seconds: Three-point estimation maximum.
+        start_no_earlier_than: ISO date string, or empty string to clear.
+            Maps to `task.startNoEarlierThanDate`.
+        start_no_later_than: ISO date string, or empty string to clear.
+            Maps to `task.startNoLaterThanDate`.
+        end_no_earlier_than: ISO date string, or empty string to clear.
+            Maps to `task.endNoEarlierThanDate`.
+        end_no_later_than: ISO date string, or empty string to clear.
+            Maps to `task.endNoLaterThanDate`.
     """
     doc_sel = _doc_selector()
     task_to_obj = _task_to_obj()
@@ -480,6 +496,16 @@ async def update_task(
         updates.append(f"task.expectedEffortEstimate = {int(expected_effort_seconds)};")
     if max_effort_seconds is not None:
         updates.append(f"task.maxEffortEstimate = {int(max_effort_seconds)};")
+    for param_value, omnijs_prop in (
+        (start_no_earlier_than, "startNoEarlierThanDate"),
+        (start_no_later_than, "startNoLaterThanDate"),
+        (end_no_earlier_than, "endNoEarlierThanDate"),
+        (end_no_later_than, "endNoLaterThanDate"),
+    ):
+        if param_value == "":
+            updates.append(f"task.{omnijs_prop} = null;")
+        elif param_value is not None:
+            updates.append(f"task.{omnijs_prop} = new Date({json.dumps(param_value)});")
 
     if not updates:
         return json.dumps({"error": "No fields to update."})
