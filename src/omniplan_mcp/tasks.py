@@ -280,6 +280,151 @@ return obj;
 
 
 @mcp.tool()
+async def create_tasks(
+    tasks: list[dict],
+) -> str:
+    """Create multiple tasks in a single JXA call.
+
+    Performance: each `evaluateJavascript` round-trip is ~1-3s of
+    osascript startup. Building 50 tasks via 50 calls to `create_task`
+    is ~50-150s. This tool does the whole batch in one round-trip.
+
+    Args:
+        tasks: list of task specs. Each spec is a dict with the same
+            fields `create_task` accepts:
+              title (required), parent_id, task_type, note,
+              manual_start_date, manual_end_date, effort_seconds,
+              min_effort_seconds, expected_effort_seconds,
+              max_effort_seconds.
+            Plus one extra:
+              parent_index — int, optional. References another task in
+              the same batch by zero-based position. Must be less than
+              the task's own index. At most one of `parent_id` and
+              `parent_index` may be set; if neither is set, the task
+              is added under the document root.
+
+    Returns:
+        JSON array of created-task shapes — same fields as `create_task`
+        returns, in the order the inputs were given.
+
+    Raises ValueError on invalid parent_index references or unknown
+    parent_id, before any task is created.
+    """
+    if not isinstance(tasks, list):
+        raise ValueError("tasks must be a list of dicts")
+    if not tasks:
+        return json.dumps([])
+
+    normalized: list[dict] = []
+    for i, t in enumerate(tasks):
+        if not isinstance(t, dict):
+            raise ValueError(f"tasks[{i}] is not a dict")
+        title = t.get("title")
+        if not isinstance(title, str) or not title:
+            raise ValueError(f"tasks[{i}].title is required and must be a non-empty string")
+        parent_id = t.get("parent_id")
+        parent_index = t.get("parent_index")
+        if parent_id is not None and parent_index is not None:
+            raise ValueError(f"tasks[{i}]: pass at most one of parent_id, parent_index")
+        if parent_index is not None:
+            if not isinstance(parent_index, int) or parent_index < 0 or parent_index >= i:
+                raise ValueError(
+                    f"tasks[{i}].parent_index must be an int in [0, {i}); got {parent_index!r}"
+                )
+        normalized.append({
+            "title": title,
+            "parent_id": parent_id,
+            "parent_index": parent_index,
+            "task_type": t.get("task_type"),
+            "note": t.get("note"),
+            "manual_start_date": t.get("manual_start_date"),
+            "manual_end_date": t.get("manual_end_date"),
+            "effort_seconds": t.get("effort_seconds"),
+            "min_effort_seconds": t.get("min_effort_seconds"),
+            "expected_effort_seconds": t.get("expected_effort_seconds"),
+            "max_effort_seconds": t.get("max_effort_seconds"),
+        })
+
+    doc_sel = _doc_selector()
+    task_to_obj = _task_to_obj()
+    specs_js = json.dumps(normalized)
+
+    script = f"""
+{doc_sel}
+{task_to_obj}
+
+const _rootUID = String(_proj.actual.rootTask.uniqueID);
+const specs = {specs_js};
+
+function findById(task, id) {{
+  if (String(task.uniqueID) === id) return task;
+  for (let i = 0; i < task.subtasks.length; i++) {{
+    const f = findById(task.subtasks[i], id);
+    if (f) return f;
+  }}
+  return null;
+}}
+
+function fmtOutline(parentTask, parentOutlineId, childTask) {{
+  const idx = parentTask.subtasks.indexOf(childTask) + 1;
+  return parentOutlineId ? (parentOutlineId + '.' + idx) : String(idx);
+}}
+
+function outlineFor(task) {{
+  if (String(task.uniqueID) === _rootUID) return '';
+  const root = _proj.actual.rootTask;
+  function walk(t, path) {{
+    for (let i = 0; i < t.subtasks.length; i++) {{
+      const child = t.subtasks[i];
+      const seg = path ? (path + '.' + (i + 1)) : String(i + 1);
+      if (String(child.uniqueID) === String(task.uniqueID)) return seg;
+      const found = walk(child, seg);
+      if (found) return found;
+    }}
+    return null;
+  }}
+  return walk(root, '') || '';
+}}
+
+const created = [];
+const out = [];
+for (let i = 0; i < specs.length; i++) {{
+  const s = specs[i];
+  let parent;
+  let parentOutlineId = '';
+  if (s.parent_id !== null && s.parent_id !== undefined) {{
+    parent = findById(_proj.actual.rootTask, s.parent_id);
+    if (!parent) throw new Error('tasks[' + i + ']: parent_id not found: ' + s.parent_id);
+    parentOutlineId = outlineFor(parent);
+  }} else if (s.parent_index !== null && s.parent_index !== undefined) {{
+    parent = created[s.parent_index];
+    parentOutlineId = outlineFor(parent);
+  }} else {{
+    parent = _proj.actual.rootTask;
+  }}
+  const t = parent.addSubtask();
+  t.title = s.title;
+  if (s.task_type) t.type = TaskType[s.task_type];
+  if (s.note !== null && s.note !== undefined) t.note = s.note;
+  if (s.manual_start_date) t.manualStartDate = new Date(s.manual_start_date);
+  if (s.manual_end_date) t.manualEndDate = new Date(s.manual_end_date);
+  if (s.effort_seconds !== null && s.effort_seconds !== undefined) t.effort = s.effort_seconds;
+  if (s.min_effort_seconds !== null && s.min_effort_seconds !== undefined) t.minEffortEstimate = s.min_effort_seconds;
+  if (s.expected_effort_seconds !== null && s.expected_effort_seconds !== undefined) t.expectedEffortEstimate = s.expected_effort_seconds;
+  if (s.max_effort_seconds !== null && s.max_effort_seconds !== undefined) t.maxEffortEstimate = s.max_effort_seconds;
+  created.push(t);
+  const obj = taskToObj(t);
+  obj.outline_id = fmtOutline(parent, parentOutlineId, t);
+  obj.parent_id = (String(parent.uniqueID) === _rootUID) ? null : String(parent.uniqueID);
+  out.push(obj);
+}}
+return out;
+"""
+    result = await run_omnijs(script)
+    return json.dumps(result)
+
+
+@mcp.tool()
 async def update_task(
     task_id: str,
     title: Optional[str] = None,

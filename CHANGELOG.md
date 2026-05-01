@@ -7,6 +7,12 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 ## [Unreleased]
 
 ### Added
+- `create_tasks(tasks: list[dict])` — bulk task creation in a single
+  JXA call. Each spec accepts the same fields as `create_task` plus a
+  `parent_index` field for intra-batch parent references (a later task
+  can parent to an earlier one without needing the earlier one's
+  uniqueID). Performance: 50 tasks via 50 `create_task` calls is
+  ~50–150s of osascript startup; via `create_tasks` it's ~1s.
 - `get_project_info()` — returns `{name, path, start_date, end_date,
   scenarios}`. `path` is fetched via the JXA SDEF surface (omniJS
   doesn't expose it). `scenarios` only advertises `["Actual"]` because

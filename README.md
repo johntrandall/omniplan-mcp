@@ -68,6 +68,7 @@ Then restart Claude Desktop.
 | `query_tasks` | Search and filter tasks by keyword, type, completion, color, or date range |
 | `get_task` | Get full details of a task by ID |
 | `create_task` | Create a new task under a parent task or project root (effort + 3-point estimate fields supported) |
+| `create_tasks` | Bulk-create many tasks in a single round-trip; supports intra-batch `parent_index` |
 | `update_task` | Update task fields (title, note, dates, completion, color, effort + 3-point estimate) |
 | `find_task` | Look up tasks by title; returns `[{id, title, outline_id}]` (substring by default, exact opt-in) |
 | `delete_task` | Delete a task by ID |
