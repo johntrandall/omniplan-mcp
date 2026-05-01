@@ -7,6 +7,14 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 ## [Unreleased]
 
 ### Added
+- `add_dependency(predecessor_id, successor_id, kind, lead_time_seconds)`,
+  `remove_dependency(predecessor_id, successor_id)`,
+  `list_dependencies(task_id=None)` tools (new module
+  `src/omniplan_mcp/dependencies.py`). Supports all four DependencyKind
+  values (FS / SS / FF / SF). **Known limitation:** `lead_time_seconds`
+  is write-only — OmniPlan's omniJS `Duration` is opaque and exposes no
+  read accessor, so `list_dependencies` returns `lead_time_seconds:
+  null`. Documented in the module docstring and tests.
 - `find_task(name, exact=False)` tool. Substring (case-insensitive) by
   default, exact match opt-in. Returns `[{id, title, outline_id}]`.
   Removes the "list everything → grep → use ID" pattern.

@@ -71,6 +71,9 @@ Then restart Claude Desktop.
 | `update_task` | Update task fields (title, note, dates, completion, color, effort + 3-point estimate) |
 | `find_task` | Look up tasks by title; returns `[{id, title, outline_id}]` (substring by default, exact opt-in) |
 | `delete_task` | Delete a task by ID |
+| `add_dependency` | Link two tasks (FS / SS / FF / SF, optional lead time) |
+| `remove_dependency` | Remove the dependency between two tasks |
+| `list_dependencies` | List dependencies in the document (or filtered to one task) |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.
 
