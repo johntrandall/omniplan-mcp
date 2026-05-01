@@ -2,7 +2,7 @@
 
 MCP server for [OmniPlan 4](https://www.omnigroup.com/omniplan) on macOS. Manage your project tasks with natural language via Claude or any MCP-compatible client.
 
-> **This is johntrandall's active fork** of [xiahan4956/omniplan-mcp](https://github.com/xiahan4956/omniplan-mcp). Upstream shipped 6 task-CRUD tools as v0.1.0; this fork is at **v0.3.0** with **17 tools** and adds dependencies, three-point estimates, name lookup, project info, bulk creation, resource CRUD, and explicit save. See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for the full roadmap and [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md) for the omniJS limitations we hit and the sentinel tests that watch for fixes. PRs are sent upstream as features ship; this fork is the daily driver until they merge.
+> **This is johntrandall's active fork** of [xiahan4956/omniplan-mcp](https://github.com/xiahan4956/omniplan-mcp). Upstream shipped 6 task-CRUD tools as v0.1.0; this fork is at **v0.3.0** with **19 tools** and adds dependencies, three-point estimates, name lookup, project info, bulk creation, resource CRUD, and explicit save. See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for the full roadmap and [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md) for the omniJS limitations we hit and the sentinel tests that watch for fixes. PRs are sent upstream as features ship; this fork is the daily driver until they merge.
 
 ## Reference material
 
@@ -25,7 +25,7 @@ See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) "Verified vs unverified API cla
 
 ## Installation
 
-This fork (`v0.3.0`, 17 tools):
+This fork (`v0.3.0`, 19 tools):
 
 ```bash
 uv tool install --from git+https://github.com/johntrandall/omniplan-mcp.git omniplan-mcp

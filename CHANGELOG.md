@@ -17,7 +17,7 @@ Upstream PRs: [#6](https://github.com/xiahan4956/omniplan-mcp/pull/6),
 [#7](https://github.com/xiahan4956/omniplan-mcp/pull/7), and the
 resource module PR opened in this release.
 
-Tool count: 11 → 17. New tools: `get_project_info`, `update_project`,
+Tool count: 13 → 19. New tools: `get_project_info`, `update_project`,
 `create_tasks`, `list_resources`, `create_resource`, `delete_resource`,
 `assign_resource`, `unassign_resource`.
 

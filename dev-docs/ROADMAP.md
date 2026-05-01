@@ -7,7 +7,7 @@ This fork extends coverage so Claude can drive a real Gantt: dependencies, resou
 ## Current status
 
 - **v0.3.0** tagged 2026-05-01 (Tier 1 of this roadmap).
-- **17 tools** registered (upstream baseline: 6).
+- **19 tools** registered (upstream baseline: 6).
 - **40 integration tests pass**, 2 skip when no saved doc, 2 `xfail(strict=True)` sentinels for omniJS gaps.
 
 | Tier | Status | Date |
