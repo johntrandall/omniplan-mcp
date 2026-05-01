@@ -1,6 +1,8 @@
 """Task-dependency tools.
 
-Verified omniJS surface (probed live against OmniPlan 4.10.2):
+Verified omniJS surface (per the documented Duration class at
+https://omni-automation.com/omniplan/duration.html and probed live
+against OmniPlan 4.10.2):
 
   - `task.addDependent(other) -> Dependency` — creates a dependency with
     `kind = DependencyKind.FinishStart` by default. Set `dep.kind = ...`
@@ -13,13 +15,12 @@ Verified omniJS surface (probed live against OmniPlan 4.10.2):
     prerequisite), `task.prerequisites` (this task is the dependent).
   - `dep.prerequisite`, `dep.dependent` — Task references with `uniqueID`.
   - `dep.remove()` — deletes the dependency from both endpoints.
-  - `dep.leadTimeDuration` — write-accepts a `Duration` object built via
-    `Duration.workSeconds(N)` (or `elapsedHourMinSec` etc.). The omniJS
-    `Duration` object is opaque on read — there is no accessor that
-    returns the value as a number. Tools therefore return
-    `lead_time_seconds: null` from `list_dependencies`. Reading the
-    actual value requires the JXA AppleEvent SDEF surface, which is out
-    of scope for this module.
+  - `dep.leadTimeDuration` — read/write a `Duration` object. Build for
+    write via `Duration.workSeconds(N)`. Read the value back via
+    `dep.leadTimeDuration.workSeconds` (Number, read-only) — pairs
+    symmetrically with the write side. Earlier sessions wrongly thought
+    Duration was opaque; the documented accessors (`workSeconds`,
+    `elapsed`, `elapsedSeconds`, etc.) round-trip cleanly.
 """
 from __future__ import annotations
 
@@ -84,9 +85,12 @@ async def add_dependency(
             different dependency kind.
 
     Returns:
-        JSON object echoing the input. `lead_time_seconds` cannot be
-        read back from OmniPlan in omniJS (Duration objects are opaque),
-        so this is a write-only confirmation rather than a true read.
+        JSON `{predecessor_id, successor_id, kind, lead_time_seconds}`.
+        `lead_time_seconds` is read back via
+        `dep.leadTimeDuration.workSeconds` after the write — a true
+        round-trip, not an echo. When no Duration is set on the
+        dependency (e.g. lead_time_seconds=0), the field is reported as
+        `0` rather than `null`.
     """
     omnijs_kind = _validate_kind(kind)
     lead = max(0, int(lead_time_seconds))
@@ -119,11 +123,14 @@ const dep = pre.addDependent(suc);
 dep.kind = DependencyKind.{omnijs_kind};
 {set_lead}
 
+// When no Duration is set on the dependency, leadTimeDuration is null;
+// surface that as 0 (semantically equivalent — no lead time).
+const ltd = dep.leadTimeDuration;
 return {{
   predecessor_id: String(pre.uniqueID),
   successor_id: String(suc.uniqueID),
   kind: {json.dumps(kind)},
-  lead_time_seconds: {lead},
+  lead_time_seconds: ltd ? ltd.workSeconds : 0,
 }};
 """
     result = await run_omnijs(script)
@@ -190,9 +197,9 @@ async def list_dependencies(
 
     Returns:
         JSON array of `{"predecessor_id", "successor_id", "kind",
-        "lead_time_seconds"}`. `lead_time_seconds` is always `null` —
-        OmniPlan's omniJS `Duration` is opaque, so the value cannot be
-        read back. Treat the field as a forward-compatibility slot.
+        "lead_time_seconds"}`. `lead_time_seconds` is read from
+        `dep.leadTimeDuration.workSeconds`; it is `null` only when no
+        lead-time Duration is set on the dependency.
     """
     filter_clause = (
         f"if (preId !== {json.dumps(task_id)} && sucId !== {json.dumps(task_id)}) continue;"
@@ -219,11 +226,13 @@ for (const t of all) {{
     const key = preId + '->' + sucId;
     if (seen.has(key)) continue;
     seen.add(key);
+    // When no Duration is set, leadTimeDuration is null; surface as 0.
+    const ltd = dep.leadTimeDuration;
     out.push({{
       predecessor_id: preId,
       successor_id: sucId,
       kind: parseKind(dep.kind) || 'FS',
-      lead_time_seconds: null,
+      lead_time_seconds: ltd ? ltd.workSeconds : 0,
     }});
   }}
 }}

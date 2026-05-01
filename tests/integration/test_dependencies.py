@@ -5,9 +5,9 @@ Verified omniJS surface (probed live against OmniPlan 4.10.2):
   - `dep.kind = DependencyKind.{FinishStart|FinishFinish|StartStart|StartFinish}`
   - `dep.prerequisite.uniqueID`, `dep.dependent.uniqueID`
   - `dep.remove()`
-  - `dep.leadTimeDuration` accepts `Duration.workSeconds(N)` on write but
-    is opaque on read (no exposed accessor) — `lead_time_seconds` returns
-    null from `list_dependencies`.
+  - `dep.leadTimeDuration` accepts `Duration.workSeconds(N)` on write
+    and is read back via `dep.leadTimeDuration.workSeconds` — full
+    round-trip per the documented Duration class.
 """
 from __future__ import annotations
 
@@ -102,20 +102,20 @@ async def test_remove_dependency_returns_false_when_no_match(test_root: str) -> 
 
 
 async def test_add_dependency_with_lead_time(test_root: str) -> None:
-    """Lead time write does not raise. Read-back is null per documented
-    omniJS Duration opacity — only the write path is exercised here."""
+    """Lead time round-trips: written as Duration.workSeconds(N), read
+    back via dep.leadTimeDuration.workSeconds (Number)."""
     a_id, b_id = await _make_pair(test_root, "lead")
     payload = json.loads(
-        await add_dependency(a_id, b_id, kind="FS", lead_time_seconds=1800)
+        await add_dependency(a_id, b_id, kind="FS", lead_time_seconds=3600)
     )
-    assert payload["lead_time_seconds"] == 1800
+    assert payload["lead_time_seconds"] == 3600
 
     listed = json.loads(await list_dependencies(task_id=b_id))
     matching = [
         d for d in listed if d["predecessor_id"] == a_id and d["successor_id"] == b_id
     ]
     assert len(matching) == 1
-    assert matching[0]["lead_time_seconds"] is None
+    assert matching[0]["lead_time_seconds"] == 3600
 
 
 async def test_add_dependency_unknown_kind_rejected(test_root: str) -> None:

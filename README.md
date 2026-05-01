@@ -93,6 +93,7 @@ Then restart Claude Desktop.
 | `delete_resource` | Delete a resource by ID; OmniPlan strips its assignments |
 | `assign_resource` | Assign a resource to a task (optional `units`) |
 | `unassign_resource` | Remove a resource assignment from a task |
+| `list_assignments` | List a task's resource assignments (`{resource_id, resource_name, units_assigned}`) |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.
 

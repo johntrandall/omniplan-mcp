@@ -1,14 +1,15 @@
 """Integration tests for `get_project_info` and `update_project`.
 
-Verified omniJS surface (probed live 2026-05-01, OmniPlan 4.10.2):
+Verified omniJS surface (per the documented Project class at
+https://omni-automation.com/omniplan/projects.html and probed live
+2026-05-01, OmniPlan 4.10.2):
   - `document.project.actual.startDate`  writable, persistent
   - `document.project.actual.endDate`    read-only (computed from tasks)
+  - `document.project.baselineNames`     Array of String r/o; baseline names
   - `document.name`                      read-only document name
   - SDEF JXA `documents()[0].path()`     for the file path
 
 omniJS surface gaps treated as known-not-supported:
-  - `proj.scenarios` and `proj.baselines` undefined — the response only
-    advertises `["Actual"]`.
   - `actual.currency` writes don't persist across JXA boundaries —
     omitted from both read and write shape.
 """
@@ -28,7 +29,12 @@ async def test_get_project_info_shape() -> None:
     assert isinstance(info["name"], str) and info["name"]
     # path may be None for an untitled doc
     assert "path" in info
-    assert info["scenarios"] == ["Actual"]
+    # scenarios is ["Actual", ...proj.baselineNames]; baselines depend
+    # on the document, so just assert the shape and that "Actual" is
+    # always first.
+    assert isinstance(info["scenarios"], list)
+    assert "Actual" in info["scenarios"]
+    assert info["scenarios"][0] == "Actual"
     # dates may legitimately be None on an empty doc; just verify the keys
     # are present and the value is None or a YYYY-MM-DD string.
     for key in ("start_date", "end_date"):

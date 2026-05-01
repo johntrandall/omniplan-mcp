@@ -6,6 +6,28 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 
 ## [Unreleased]
 
+### Fixed
+- `list_dependencies` and `add_dependency` now round-trip
+  `lead_time_seconds` via the documented `Duration.workSeconds`
+  accessor instead of returning `null` / echoing the input. The
+  previous session wrongly concluded `Duration` was opaque on read; the
+  documented Duration class exposes `workSeconds`, `elapsedSeconds`,
+  `elapsed`, and friends. Module docstring and tests updated.
+- `assign_resource` now writes via the documented
+  `assignment.unitsAssigned` (Number, read/write) instead of the
+  non-existent `assignment.units`. The value is read back after the
+  write — a true round-trip, not an echo.
+- `get_project_info` now enumerates baselines via
+  `proj.baselineNames`, returning
+  `scenarios: ["Actual", ...proj.baselineNames]` instead of the
+  hard-coded `["Actual"]`. The documented Project class exposes
+  `baselineNames` (Array of String) plus `baselineNamed(name)`.
+
+### Added
+- `list_assignments(task_id) -> [{resource_id, resource_name,
+  units_assigned}]` — exposes per-task assignment info that
+  `list_resources` doesn't cover.
+
 ## [0.3.0] - 2026-05-01
 
 Tier 1 of the fork roadmap (`dev-docs/ROADMAP.md`): adds

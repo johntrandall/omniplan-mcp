@@ -96,16 +96,15 @@ async def get_project_info() -> str:
         JSON `{name, path, start_date, end_date, scenarios}`. `path` comes
         from the JXA SDEF surface (omniJS doesn't expose it). `start_date`
         and `end_date` are the actual scenario's computed bounds (ISO
-        YYYY-MM-DD). `scenarios` always contains at least `"Actual"` —
-        the omniJS Project class doesn't expose a scenario enumeration,
-        so additional baselines aren't surfaced here. Use the SDEF
-        AppleScript path if you need to enumerate baselines.
+        YYYY-MM-DD). `scenarios` is `["Actual", ...proj.baselineNames]`
+        — the active scenario followed by every baseline scenario name
+        defined on the project. The order matches OmniPlan's own
+        baseline list; "Actual" is the conventional name for the active
+        scenario (`proj.actual`).
 
     omniJS surface gaps surfaced during implementation (probed
     2026-05-01 against OmniPlan 4.10.2):
       - `proj.startDate` is undefined; date lives on `actual.startDate`.
-      - `proj.scenarios` is undefined; only `proj.baselineNamed(name)`
-        is reachable, which requires you to know the name first.
       - `actual.currency` accepts a write inline but does NOT persist
         across JXA calls (same trap as constraint dates) — omitted from
         the response shape rather than returning a stale value.
@@ -132,11 +131,16 @@ if (docs.length === 0) {
     try {
       const proj = document.project;
       const actual = proj.actual;
+      const baselineNames = proj.baselineNames || [];
+      const scenarios = ['Actual'];
+      for (var i = 0; i < baselineNames.length; i++) {
+        scenarios.push(String(baselineNames[i]));
+      }
       return JSON.stringify({ok:true, data:{
         name: document.name || '',
         start_date: fmt(actual.startDate),
         end_date: fmt(actual.endDate),
-        scenarios: ['Actual'],
+        scenarios: scenarios,
       }});
     } catch (e) { return JSON.stringify({ok:false, error: String(e)}); }
   })()`));

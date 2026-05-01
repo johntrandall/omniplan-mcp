@@ -1,6 +1,8 @@
 """Resource CRUD + task-resource assignments.
 
-Verified omniJS surface (probed live 2026-05-01 against OmniPlan 4.10.2):
+Verified omniJS surface (per the documented Assignment / Resource classes
+at https://omni-automation.com/omniplan/ and probed live 2026-05-01
+against OmniPlan 4.10.2):
 
   - `actual.rootResource.addMember() -> Resource`
   - `r.name`, `r.email`, `r.type` — string/string/ResourceType, all persist
@@ -15,12 +17,11 @@ Verified omniJS surface (probed live 2026-05-01 against OmniPlan 4.10.2):
   - `task.addAssignment(resource) -> Assignment`
   - `task.assignments` — array of Assignment objects
   - `assignment.resource` — Resource ref
+  - `assignment.unitsAssigned` — Number, read/write. The earlier
+    session probed the wrong property name (`units`) and concluded
+    persistence was broken; using the documented `unitsAssigned`
+    accessor round-trips cleanly.
   - `assignment.remove()` — deletes the assignment
-
-Known omniJS gap surfaced during probing — `assignment.units` does not
-persist across JXA call boundaries (same trap as `dep.leadTimeDuration`
-and `task.startConstraintDate`). Tools accept `units` on write but
-return `null` on read.
 """
 from __future__ import annotations
 
@@ -192,20 +193,19 @@ async def assign_resource(
         task_id: uniqueID of the task.
         resource_id: uniqueID of the resource.
         units: Optional fractional allocation (1.0 = 100% of a staff
-            resource's working hours). The omniJS API accepts the write
-            but the value does NOT persist across JXA boundaries (same
-            trap as `dep.leadTimeDuration`). The returned shape reports
-            `units: null` even when a value was passed in.
+            resource's working hours). Maps to the documented
+            `assignment.unitsAssigned` accessor (Number, read/write).
+            Round-trips cleanly across JXA call boundaries.
 
     Returns:
-        JSON `{task_id, resource_id, units}`. `units` always echoes the
-        value passed in — this is a write-only confirmation, not a true
-        round-trip read.
+        JSON `{task_id, resource_id, units}`. `units` is read back from
+        `assignment.unitsAssigned` after the write — a true round-trip.
+        When `units` is omitted on input, the returned value reflects
+        whatever default OmniPlan applied (typically 1.0).
     """
     set_units = (
-        f"a.units = {float(units)};" if units is not None else ""
+        f"a.unitsAssigned = {float(units)};" if units is not None else ""
     )
-    units_echo = "null" if units is None else f"{float(units)}"
 
     script = f"""
 const target_task_id = {json.dumps(task_id)};
@@ -237,7 +237,54 @@ if (!res) throw new Error('Resource not found: ' + target_res_id);
 const a = task.addAssignment(res);
 {set_units}
 
-return {{ task_id: target_task_id, resource_id: target_res_id, units: {units_echo} }};
+return {{
+  task_id: target_task_id,
+  resource_id: target_res_id,
+  units: a.unitsAssigned,
+}};
+"""
+    result = await run_omnijs(script)
+    return json.dumps(result)
+
+
+@mcp.tool()
+async def list_assignments(task_id: str) -> str:
+    """List the resource assignments on a task.
+
+    Args:
+        task_id: uniqueID of the task.
+
+    Returns:
+        JSON array of `{resource_id, resource_name, units_assigned}`
+        for each assignment on the task. Empty array if the task has
+        no assignments. Reads `assignment.unitsAssigned` directly per
+        the documented Assignment class.
+    """
+    script = f"""
+const target_task_id = {json.dumps(task_id)};
+
+function findTask(t, id) {{
+  if (String(t.uniqueID) === id) return t;
+  for (const c of t.subtasks) {{
+    const f = findTask(c, id); if (f) return f;
+  }}
+  return null;
+}}
+
+const task = findTask(document.project.actual.rootTask, target_task_id);
+if (!task) throw new Error('Task not found: ' + target_task_id);
+
+const out = [];
+for (let i = 0; i < task.assignments.length; i++) {{
+  const a = task.assignments[i];
+  if (!a.resource) continue;
+  out.push({{
+    resource_id: String(a.resource.uniqueID),
+    resource_name: a.resource.name || '',
+    units_assigned: a.unitsAssigned,
+  }});
+}}
+return out;
 """
     result = await run_omnijs(script)
     return json.dumps(result)

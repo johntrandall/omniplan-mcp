@@ -1,6 +1,8 @@
 """Integration tests for resource CRUD and assignments.
 
-Verified omniJS surface (probed live 2026-05-01, OmniPlan 4.10.2):
+Verified omniJS surface (per the documented Assignment / Resource
+classes at https://omni-automation.com/omniplan/ and probed live
+2026-05-01, OmniPlan 4.10.2):
 
   - actual.rootResource.addMember() returns a Resource
   - r.name / r.email / r.type / r.uniqueID — persistent, readable
@@ -10,9 +12,9 @@ Verified omniJS surface (probed live 2026-05-01, OmniPlan 4.10.2):
   - task.addAssignment(resource) returns an Assignment
   - task.assignments — array; assignment.resource has uniqueID
   - assignment.remove() works
-  - assignment.units — write accepted, NOT persistent across JXA calls
-    (same trap as dep.leadTimeDuration). Tools accept and echo, but
-    return null on read.
+  - assignment.unitsAssigned (NOT `units`) — Number, read/write,
+    round-trips. The earlier session probed the wrong property name;
+    the documented accessor is `unitsAssigned`.
 
 Tests use the `__test__` prefix so the integration conftest cleans up
 both tasks and resources at teardown.
@@ -27,6 +29,7 @@ from omniplan_mcp.resources import (
     assign_resource,
     create_resource,
     delete_resource,
+    list_assignments,
     list_resources,
     unassign_resource,
 )
@@ -92,6 +95,7 @@ async def test_assign_and_unassign_resource(test_root: str) -> None:
     assigned = json.loads(
         await assign_resource(task_id=t["id"], resource_id=r["id"], units=0.5)
     )
+    # `units` now round-trips via assignment.unitsAssigned (true read).
     assert assigned == {"task_id": t["id"], "resource_id": r["id"], "units": 0.5}
 
     removed = json.loads(await unassign_resource(task_id=t["id"], resource_id=r["id"]))
@@ -105,3 +109,40 @@ async def test_unassign_returns_false_when_no_assignment(test_root: str) -> None
     )
     result = json.loads(await unassign_resource(task_id=t["id"], resource_id=r["id"]))
     assert result == {"removed": False}
+
+
+async def test_list_assignments(test_root: str) -> None:
+    """Two assignments at different unitsAssigned values round-trip."""
+    r1 = json.loads(await create_resource(name="__test__rsrc_la_one", type="staff"))
+    r2 = json.loads(await create_resource(name="__test__rsrc_la_two", type="staff"))
+    t = json.loads(
+        await create_task(
+            title="__test__rsrc_la_task",
+            parent_id=test_root,
+            effort_seconds=3600,
+        )
+    )
+
+    await assign_resource(task_id=t["id"], resource_id=r1["id"], units=0.25)
+    await assign_resource(task_id=t["id"], resource_id=r2["id"], units=0.75)
+
+    listed = json.loads(await list_assignments(task_id=t["id"]))
+    by_id = {a["resource_id"]: a for a in listed}
+    assert r1["id"] in by_id
+    assert r2["id"] in by_id
+    assert by_id[r1["id"]]["resource_name"] == "__test__rsrc_la_one"
+    assert by_id[r1["id"]]["units_assigned"] == 0.25
+    assert by_id[r2["id"]]["resource_name"] == "__test__rsrc_la_two"
+    assert by_id[r2["id"]]["units_assigned"] == 0.75
+
+
+async def test_list_assignments_empty(test_root: str) -> None:
+    t = json.loads(
+        await create_task(
+            title="__test__rsrc_la_empty_task",
+            parent_id=test_root,
+            effort_seconds=3600,
+        )
+    )
+    listed = json.loads(await list_assignments(task_id=t["id"]))
+    assert listed == []
