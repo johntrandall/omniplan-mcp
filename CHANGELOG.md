@@ -6,6 +6,16 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-01
+
+Tier 0 of the fork roadmap (`dev-docs/ROADMAP.md`): adds dependency
+support, effort/three-point estimation, name-based lookup, and
+explicit save. Bumps the fork from `0.1.1` to `0.2.0`. Upstream PRs:
+[#2](https://github.com/xiahan4956/omniplan-mcp/pull/2),
+[#3](https://github.com/xiahan4956/omniplan-mcp/pull/3),
+[#4](https://github.com/xiahan4956/omniplan-mcp/pull/4),
+[#5](https://github.com/xiahan4956/omniplan-mcp/pull/5).
+
 ### Added
 - `save_document()` tool. OmniPlan does NOT autosave on idle (verified
   empirically — `document.modified` stays `true` for at least 10s after
