@@ -4,4 +4,7 @@ __pycache__/
 dist/
 build/
 .venv/
+.venv-*/
 *.egg
+.claude/
+.pytest_cache/
