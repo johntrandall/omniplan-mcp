@@ -375,6 +375,61 @@ return obj;
 
 
 @mcp.tool()
+async def find_task(
+    name: str,
+    exact: bool = False,
+) -> str:
+    """Look up tasks by title, returning lightweight identifiers.
+
+    Removes the "list everything → grep → use ID" pattern when an agent
+    knows the title but not the uniqueID.
+
+    Args:
+        name: Title to match. Case-insensitive substring match by default.
+        exact: When True, only return tasks whose title equals `name`
+            exactly (case-sensitive). When False, returns every descendant
+            whose title contains `name` (case-insensitive).
+
+    Returns:
+        JSON array of `{"id", "title", "outline_id"}`. Empty array if
+        nothing matches. Order matches outline traversal (depth-first,
+        children in document order).
+    """
+    if exact:
+        match_expr = f"(t.title || '') === {json.dumps(name)}"
+    else:
+        kw = json.dumps(name.lower())
+        match_expr = f"((t.title || '').toLowerCase()).indexOf({kw}) >= 0"
+
+    script = f"""
+const _proj = document.project;
+const root = _proj.actual.rootTask;
+
+function walk(task, outlineId, hits) {{
+  for (let i = 0; i < task.subtasks.length; i++) {{
+    const t = task.subtasks[i];
+    const idx = String(i + 1);
+    const childOutlineId = outlineId ? (outlineId + '.' + idx) : idx;
+    if ({match_expr}) {{
+      hits.push({{
+        id: String(t.uniqueID),
+        title: t.title || '',
+        outline_id: childOutlineId,
+      }});
+    }}
+    walk(t, childOutlineId, hits);
+  }}
+}}
+
+const hits = [];
+walk(root, '', hits);
+return hits;
+"""
+    result = await run_omnijs(script)
+    return json.dumps(result)
+
+
+@mcp.tool()
 async def delete_task(
     task_id: str,
 ) -> str:

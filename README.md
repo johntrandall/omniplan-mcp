@@ -67,8 +67,9 @@ Then restart Claude Desktop.
 | `list_documents` | List all currently open OmniPlan documents |
 | `query_tasks` | Search and filter tasks by keyword, type, completion, color, or date range |
 | `get_task` | Get full details of a task by ID |
-| `create_task` | Create a new task under a parent task or project root |
-| `update_task` | Update task fields (title, note, dates, completion, color) |
+| `create_task` | Create a new task under a parent task or project root (effort + 3-point estimate fields supported) |
+| `update_task` | Update task fields (title, note, dates, completion, color, effort + 3-point estimate) |
+| `find_task` | Look up tasks by title; returns `[{id, title, outline_id}]` (substring by default, exact opt-in) |
 | `delete_task` | Delete a task by ID |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.

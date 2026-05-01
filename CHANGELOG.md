@@ -7,6 +7,9 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 ## [Unreleased]
 
 ### Added
+- `find_task(name, exact=False)` tool. Substring (case-insensitive) by
+  default, exact match opt-in. Returns `[{id, title, outline_id}]`.
+  Removes the "list everything → grep → use ID" pattern.
 - `create_task` / `update_task` accept `effort_seconds`,
   `min_effort_seconds`, `expected_effort_seconds`, `max_effort_seconds`.
   Effort writes a raw integer to `task.effort` (verified live against
