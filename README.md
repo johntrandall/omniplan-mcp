@@ -2,6 +2,18 @@
 
 MCP server for [OmniPlan 4](https://www.omnigroup.com/omniplan) on macOS. Manage your project tasks with natural language via Claude or any MCP-compatible client.
 
+> **This is johntrandall's active fork** of [xiahan4956/omniplan-mcp](https://github.com/xiahan4956/omniplan-mcp). Upstream ships 6 task-CRUD tools and is the right architectural foundation; this fork extends coverage so Claude can drive a full Gantt (dependencies, resources, leveling, baselines, scheduling). See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for the prioritized feature list and order of operations. PRs are sent upstream per the [`fix-upstream`](https://github.com/johntrandall) workflow; this fork is the daily driver until they land.
+
+## Reference material
+
+- **[Omni Automation API for OmniPlan](https://omni-automation.com/omniplan/index.html)** — the canonical omniJS reference. The bridge in [`src/omniplan_mcp/jxa.py`](src/omniplan_mcp/jxa.py) wraps `Application('OmniPlan').evaluateJavascript(...)` so every tool is a small omniJS snippet against this API.
+- **[Omni Automation JXA/AppleScript bridge](https://omni-automation.com/jxa-applescript.html)** — describes the `evaluateJavascript` AppleEvent we use.
+- **OmniPlan AppleScript dictionary (SDEF)** — `/Applications/OmniPlan.app/Contents/Resources/OmniPlan.sdef` (~1450 lines). Legacy surface but still authoritative for class/property names.
+- **Local vendor-docs mirror** (this Mac, John's setup) — full offline copies under [`~/dev/zVendorDocs/OmniPlan/`](file:///Users/johnrandall/dev/zVendorDocs/OmniPlan/):
+  - `omni-automation-website-v4.10.2-2026-05-01/` — full omniJS site mirror
+  - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF
+  - `reference-manual-mac-v4.5.5-2026-05-01/` — OmniPlan user manual
+
 ## Requirements
 
 - macOS
