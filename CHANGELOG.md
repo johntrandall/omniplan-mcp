@@ -6,6 +6,28 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 
 ## [Unreleased]
 
+### Added
+- `get_project_info()` — returns `{name, path, start_date, end_date,
+  scenarios}`. `path` is fetched via the JXA SDEF surface (omniJS
+  doesn't expose it). `scenarios` only advertises `["Actual"]` because
+  `proj.scenarios` is undefined in omniJS.
+- `update_project(start_date)` — writes `actual.startDate`. Verified
+  persistent across JXA calls.
+
+### Test infrastructure
+- `tests/integration/test_save_document.py` skips gracefully when the
+  front document hasn't been saved yet (e.g. fresh Tart VM with only
+  an Untitled doc) — `document.save()` would otherwise pop the Save As
+  sheet and block the JXA call.
+
+### Notes on omniJS gaps
+- `actual.currency` accepts a write inline but doesn't persist across
+  JXA boundaries (same trap as constraint dates) — deliberately omitted
+  from `update_project` rather than shipping a footgun.
+- Working hours / calendar — `actual.rootResource.schedule` exists but
+  is opaque on read; deferred until we add a parallel SDEF bridge or
+  Omni exposes accessors.
+
 ## [0.2.0] - 2026-05-01
 
 Tier 0 of the fork roadmap (`dev-docs/ROADMAP.md`): adds dependency

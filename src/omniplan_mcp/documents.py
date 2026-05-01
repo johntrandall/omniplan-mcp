@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 from omniplan_mcp.server import mcp
 
@@ -85,3 +86,106 @@ if (!inner.ok) {
     if not envelope.get("ok"):
         raise RuntimeError(str(envelope.get("error", "Save failed.")))
     return json.dumps(envelope["data"])
+
+
+@mcp.tool()
+async def get_project_info() -> str:
+    """Return project-level info for the front document.
+
+    Returns:
+        JSON `{name, path, start_date, end_date, scenarios}`. `path` comes
+        from the JXA SDEF surface (omniJS doesn't expose it). `start_date`
+        and `end_date` are the actual scenario's computed bounds (ISO
+        YYYY-MM-DD). `scenarios` always contains at least `"Actual"` —
+        the omniJS Project class doesn't expose a scenario enumeration,
+        so additional baselines aren't surfaced here. Use the SDEF
+        AppleScript path if you need to enumerate baselines.
+
+    omniJS surface gaps surfaced during implementation (probed
+    2026-05-01 against OmniPlan 4.10.2):
+      - `proj.startDate` is undefined; date lives on `actual.startDate`.
+      - `proj.scenarios` is undefined; only `proj.baselineNamed(name)`
+        is reachable, which requires you to know the name first.
+      - `actual.currency` accepts a write inline but does NOT persist
+        across JXA calls (same trap as constraint dates) — omitted from
+        the response shape rather than returning a stale value.
+    """
+    from omniplan_mcp.jxa import run_jxa
+
+    jxa_script = """
+const app = Application('OmniPlan');
+const docs = app.documents();
+if (docs.length === 0) {
+  JSON.stringify({ ok: false, error: 'No OmniPlan document is open.' });
+} else {
+  const d = docs[0];
+  let path = null;
+  try { const p = d.path(); path = p ? String(p) : null; } catch (_) {}
+  const inner = JSON.parse(app.evaluateJavascript(`(function(){
+    function fmt(date) {
+      if (!date) return null;
+      var y = date.getFullYear();
+      var m = ('0' + (date.getMonth() + 1)).slice(-2);
+      var dd = ('0' + date.getDate()).slice(-2);
+      return y + '-' + m + '-' + dd;
+    }
+    try {
+      const proj = document.project;
+      const actual = proj.actual;
+      return JSON.stringify({ok:true, data:{
+        name: document.name || '',
+        start_date: fmt(actual.startDate),
+        end_date: fmt(actual.endDate),
+        scenarios: ['Actual'],
+      }});
+    } catch (e) { return JSON.stringify({ok:false, error: String(e)}); }
+  })()`));
+  if (!inner.ok) {
+    JSON.stringify({ ok: false, error: inner.error });
+  } else {
+    inner.data.path = path;
+    JSON.stringify({ ok: true, data: inner.data });
+  }
+}
+"""
+    raw = await run_jxa(jxa_script)
+    envelope = json.loads(raw)
+    if not envelope.get("ok"):
+        raise RuntimeError(str(envelope.get("error", "get_project_info failed.")))
+    return json.dumps(envelope["data"])
+
+
+@mcp.tool()
+async def update_project(
+    start_date: Optional[str] = None,
+) -> str:
+    """Update project-level fields on the front document.
+
+    Args:
+        start_date: ISO date for the project's actual start. Maps to
+            `document.project.actual.startDate`. Verified persistent
+            across JXA calls. Empty string is rejected — clearing the
+            project start date isn't supported.
+
+    Returns:
+        Post-write `get_project_info` shape.
+
+    Note: `currency` and `working_hours` are NOT supported by this
+    tool. omniJS accepts the writes but they don't persist across calls
+    (probed live 2026-05-01); shipping them would be a footgun. The
+    fields would need a parallel SDEF AppleScript bridge.
+    """
+    from omniplan_mcp.jxa import run_omnijs
+
+    if start_date is None:
+        raise ValueError("update_project: nothing to update — pass at least one field.")
+    if start_date == "":
+        raise ValueError("update_project: start_date cannot be cleared (only updated).")
+
+    script = f"""
+const _proj = document.project;
+_proj.actual.startDate = new Date({json.dumps(start_date)});
+return null;
+"""
+    await run_omnijs(script)
+    return await get_project_info()

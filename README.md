@@ -75,6 +75,8 @@ Then restart Claude Desktop.
 | `remove_dependency` | Remove the dependency between two tasks |
 | `list_dependencies` | List dependencies in the document (or filtered to one task) |
 | `save_document` | Save the front document to disk; returns `{saved, name, modified_after}` |
+| `get_project_info` | Returns `{name, path, start_date, end_date, scenarios}` |
+| `update_project` | Update project-level fields (currently `start_date` only) |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.
 
