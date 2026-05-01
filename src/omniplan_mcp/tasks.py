@@ -205,6 +205,10 @@ async def create_task(
     note: Optional[str] = None,
     manual_start_date: Optional[str] = None,
     manual_end_date: Optional[str] = None,
+    effort_seconds: Optional[int] = None,
+    min_effort_seconds: Optional[int] = None,
+    expected_effort_seconds: Optional[int] = None,
+    max_effort_seconds: Optional[int] = None,
 ) -> str:
     """Create a new task in an OmniPlan document.
 
@@ -215,6 +219,10 @@ async def create_task(
         note: Optional task description.
         manual_start_date: ISO date string for manual start.
         manual_end_date: ISO date string for manual end.
+        effort_seconds: Total effort in person-seconds (e.g. 14400 for 4h).
+        min_effort_seconds: Three-point estimation minimum (person-seconds).
+        expected_effort_seconds: Three-point estimation expected value.
+        max_effort_seconds: Three-point estimation maximum.
     """
     doc_sel = _doc_selector()
     task_to_obj = _task_to_obj()
@@ -223,6 +231,10 @@ async def create_task(
     set_note = f"newTask.note = {json.dumps(note)};" if note else ""
     set_start = f"newTask.manualStartDate = new Date({json.dumps(manual_start_date)});" if manual_start_date else ""
     set_end = f"newTask.manualEndDate = new Date({json.dumps(manual_end_date)});" if manual_end_date else ""
+    set_effort = f"newTask.effort = {int(effort_seconds)};" if effort_seconds is not None else ""
+    set_min_effort = f"newTask.minEffortEstimate = {int(min_effort_seconds)};" if min_effort_seconds is not None else ""
+    set_expected_effort = f"newTask.expectedEffortEstimate = {int(expected_effort_seconds)};" if expected_effort_seconds is not None else ""
+    set_max_effort = f"newTask.maxEffortEstimate = {int(max_effort_seconds)};" if max_effort_seconds is not None else ""
 
     script = f"""
 {doc_sel}
@@ -252,6 +264,10 @@ newTask.title = {json.dumps(title)};
 {set_note}
 {set_start}
 {set_end}
+{set_effort}
+{set_min_effort}
+{set_expected_effort}
+{set_max_effort}
 
 var obj = taskToObj(newTask);
 obj.parent_id = parentId;
@@ -271,6 +287,10 @@ async def update_task(
     completed: Optional[bool] = None,
     manual_start_date: Optional[str] = None,
     manual_end_date: Optional[str] = None,
+    effort_seconds: Optional[int] = None,
+    min_effort_seconds: Optional[int] = None,
+    expected_effort_seconds: Optional[int] = None,
+    max_effort_seconds: Optional[int] = None,
 ) -> str:
     """Update an existing task. Only provided fields are changed.
 
@@ -281,6 +301,11 @@ async def update_task(
         completed: True to mark complete, False to mark incomplete.
         manual_start_date: ISO date string, or empty string to clear.
         manual_end_date: ISO date string, or empty string to clear.
+        effort_seconds: Total effort in person-seconds. Pass 0 to set to zero;
+            None (omit) to leave unchanged.
+        min_effort_seconds: Three-point estimation minimum (person-seconds).
+        expected_effort_seconds: Three-point estimation expected value.
+        max_effort_seconds: Three-point estimation maximum.
     """
     doc_sel = _doc_selector()
     task_to_obj = _task_to_obj()
@@ -302,6 +327,14 @@ async def update_task(
         updates.append("task.manualEndDate = null;")
     elif manual_end_date is not None:
         updates.append(f"task.manualEndDate = new Date({json.dumps(manual_end_date)});")
+    if effort_seconds is not None:
+        updates.append(f"task.effort = {int(effort_seconds)};")
+    if min_effort_seconds is not None:
+        updates.append(f"task.minEffortEstimate = {int(min_effort_seconds)};")
+    if expected_effort_seconds is not None:
+        updates.append(f"task.expectedEffortEstimate = {int(expected_effort_seconds)};")
+    if max_effort_seconds is not None:
+        updates.append(f"task.maxEffortEstimate = {int(max_effort_seconds)};")
 
     if not updates:
         return json.dumps({"error": "No fields to update."})

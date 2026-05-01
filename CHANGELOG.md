@@ -7,6 +7,12 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 ## [Unreleased]
 
 ### Added
+- `create_task` / `update_task` accept `effort_seconds`,
+  `min_effort_seconds`, `expected_effort_seconds`, `max_effort_seconds`.
+  Effort writes a raw integer to `task.effort` (verified live against
+  OmniPlan 4.10.2). Setting all three estimates triggers OmniPlan's
+  PERT recompute: `effort = (min + 4*expected + max) / 6` — documented
+  in `tests/integration/test_effort.py`.
 - `tests/` package: pytest layout (`unit/`, `integration/`, `manual/`,
   `fixtures/`), `requires_omniplan` marker that auto-skips when OmniPlan 4
   is not running, integration `test_root` fixture that creates `__test__root`
@@ -14,6 +20,7 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 - `[project.optional-dependencies] dev` group with `pytest` and
   `pytest-asyncio`.
 - Unit tests for the JXA envelope helpers in `tests/unit/test_jxa_escape.py`.
+- Integration tests for effort fields in `tests/integration/test_effort.py`.
 
 ### Changed
 - `test_tools.py` moved to `tests/manual/smoke.py`. Run with

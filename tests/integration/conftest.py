@@ -31,7 +31,6 @@ for (let i = 0; i < root.subtasks.length; i++) {{
 }}
 const t = root.addSubtask();
 t.title = {json.dumps(ROOT_TITLE)};
-t.type = TaskType.Group;
 return String(t.uniqueID);
 """
     return await run_omnijs(script)
