@@ -1,5 +1,5 @@
 from omniplan_mcp.server import mcp
-from omniplan_mcp import tasks, documents, dependencies  # noqa: F401 - registers tools
+from omniplan_mcp import tasks, documents, dependencies, resources  # noqa: F401 - registers tools
 
 
 def main() -> None:

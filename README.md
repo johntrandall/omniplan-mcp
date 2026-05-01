@@ -78,6 +78,11 @@ Then restart Claude Desktop.
 | `save_document` | Save the front document to disk; returns `{saved, name, modified_after}` |
 | `get_project_info` | Returns `{name, path, start_date, end_date, scenarios}` |
 | `update_project` | Update project-level fields (currently `start_date` only) |
+| `list_resources` | List all resources (`{id, name, type, email, cost_per_use}`) |
+| `create_resource` | Create a resource (staff / equipment / material / group); supports `cost_per_use` |
+| `delete_resource` | Delete a resource by ID; OmniPlan strips its assignments |
+| `assign_resource` | Assign a resource to a task (optional `units`) |
+| `unassign_resource` | Remove a resource assignment from a task |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.
 

@@ -37,14 +37,17 @@ return String(t.uniqueID);
 
 
 async def _delete_test_tasks() -> int:
-    """Delete every task in the front document whose title starts with the test prefix.
+    """Delete every task and resource whose name starts with the test prefix.
 
     Returns the number of tasks removed. We delete depth-first so we never
-    walk through a subtree we just removed.
+    walk through a subtree we just removed. Also strips marker-prefixed
+    resources so resource-CRUD tests don't leak across runs.
     """
     script = f"""
 const _proj = document.project;
-const root = _proj.actual.rootTask;
+const actual = _proj.actual;
+const root = actual.rootTask;
+const rootRes = actual.rootResource;
 const prefix = {json.dumps(TEST_PREFIX)};
 
 function collect(task, out) {{
@@ -62,6 +65,19 @@ let removed = 0;
 for (const t of victims) {{
   try {{ t.remove(); removed += 1; }} catch (e) {{}}
 }}
+
+function cleanRes(g) {{
+  for (let i = g.members.length - 1; i >= 0; i--) {{
+    const m = g.members[i];
+    if ((m.name || '').indexOf(prefix) === 0) {{
+      try {{ m.remove(); }} catch (e) {{}}
+    }} else if (m.members && m.members.length) {{
+      cleanRes(m);
+    }}
+  }}
+}}
+cleanRes(rootRes);
+
 return removed;
 """
     return await run_omnijs(script)

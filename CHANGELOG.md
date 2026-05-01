@@ -6,7 +6,29 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-01
+
+Tier 1 of the fork roadmap (`dev-docs/ROADMAP.md`): adds
+project-info, bulk task creation, resource CRUD + assignments, and
+documents two omniJS surface gaps (constraints, move) as
+`xfail(strict=True)` sentinels. Bumps the fork from 0.2.0 to 0.3.0.
+
+Upstream PRs: [#6](https://github.com/xiahan4956/omniplan-mcp/pull/6),
+[#7](https://github.com/xiahan4956/omniplan-mcp/pull/7), and the
+resource module PR opened in this release.
+
+Tool count: 11 → 17. New tools: `get_project_info`, `update_project`,
+`create_tasks`, `list_resources`, `create_resource`, `delete_resource`,
+`assign_resource`, `unassign_resource`.
+
 ### Added
+- `list_resources`, `create_resource(name, type, email?, cost_per_use?)`,
+  `delete_resource(resource_id)`, `assign_resource(task_id, resource_id,
+  units?)`, `unassign_resource(task_id, resource_id)` in a new
+  `src/omniplan_mcp/resources.py` module. ResourceType enum supports
+  `staff` / `equipment` / `material` / `group`. `cost_per_use` is
+  written through `Decimal.fromString(...)` per the omniJS contract;
+  read back by parsing the Decimal toString.
 - `create_tasks(tasks: list[dict])` — bulk task creation in a single
   JXA call. Each spec accepts the same fields as `create_task` plus a
   `parent_index` field for intra-batch parent references (a later task
@@ -33,6 +55,13 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 - Working hours / calendar — `actual.rootResource.schedule` exists but
   is opaque on read; deferred until we add a parallel SDEF bridge or
   Omni exposes accessors.
+- `assignment.units` — write accepted, NOT persistent across JXA
+  boundaries (same trap as `dep.leadTimeDuration`). `assign_resource`
+  echoes the input value but `list_resources` doesn't expose a units
+  field, since reads can't be trusted.
+- Constraint dates and `move_task` — both blocked on omniJS persistence
+  gaps; documented xfail sentinels in
+  `tests/integration/test_constraints.py` and `test_move_task.py`.
 
 ## [0.2.0] - 2026-05-01
 
