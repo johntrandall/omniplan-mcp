@@ -7,6 +7,13 @@ All notable changes to this fork of `omniplan-mcp`. Versioning follows
 ## [Unreleased]
 
 ### Added
+- `save_document()` tool. OmniPlan does NOT autosave on idle (verified
+  empirically — `document.modified` stays `true` for at least 10s after
+  an edit). Explicit save is required to persist between UI File>Save
+  commands and the quit-time save prompt. Returns
+  `{saved, name, modified_before, modified_after}`. The wrapper polls
+  the dirty flag for up to 2s after `document.save()` since the flag
+  clears ~500ms after the synchronous return.
 - `add_dependency(predecessor_id, successor_id, kind, lead_time_seconds)`,
   `remove_dependency(predecessor_id, successor_id)`,
   `list_dependencies(task_id=None)` tools (new module

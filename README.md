@@ -74,6 +74,7 @@ Then restart Claude Desktop.
 | `add_dependency` | Link two tasks (FS / SS / FF / SF, optional lead time) |
 | `remove_dependency` | Remove the dependency between two tasks |
 | `list_dependencies` | List dependencies in the document (or filtered to one task) |
+| `save_document` | Save the front document to disk; returns `{saved, name, modified_after}` |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.
 
