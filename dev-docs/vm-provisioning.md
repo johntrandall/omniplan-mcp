@@ -44,32 +44,57 @@ Per ADR-048, `kTCCServiceAppleEvents` rows can be written to `TCC.db` via
 `sqlite3` only while SIP is off. SIP is off only during the L1→L2 build pass;
 L2 re-enables SIP, and the L3 build inherits that.
 
-Current state (probed in the running `omniplan-dev` VM):
-- `osascript -l JavaScript` Automation grant: GRANTED (verified by an
-  AppleEvent reaching OmniPlan — it doesn't time out at the TCC layer; it
-  times out inside OmniPlan's own modal-dialog blocking).
+**Status:** The TCC Automation grant IS in place in both the persistent
+`omniplan-dev` VM and a fresh clone of the L3 image (smoke-tested
+2026-05-01 via `tart-vm start tcc-smoke-test --from macos-15.7-l3-omniplan`,
+then destroyed). AppleEvents reach OmniPlan in both VMs.
 
-Since the grant is already in place, this item is partially resolved. **What
-to verify:** does the grant persist if we destroy `omniplan-dev` and re-clone
-from the L3 image, or did it get added through some manual click on this
-specific clone? Per ADR-048 "What survives cloning", TCC grants do survive
-APFS clones. Confirmation requires a one-time test:
+The grant was therefore baked in at L3 build time (manual approval before
+the layer was captured), and per ADR-048 "What survives cloning", it
+persists across APFS clones. **Item 2 resolved.**
 
-```bash
-tart clone macos-15.7-l3-omniplan:v1-2026-05-01 omniplan-dev-test
-tart-vm start omniplan-dev-test
-tart-vm exec omniplan-dev-test zsh -l -c \
-  'osascript -l JavaScript -e "Application(\"OmniPlan\").documents().length"'
-# Should not produce a TCC dialog. If it does, the grant didn't survive
-# cloning, and the L3 build must be patched to add it (via L2 with SIP off
-# OR via manual approval baked in once before the L3 layer is captured).
-tart-vm destroy omniplan-dev-test
-```
+Caveat: in the smoke test, the AppleEvent still timed out (-1712) inside
+OmniPlan even though it reached the app. That hang is item 1 (license),
+not TCC. The grant works; the app is stuck.
 
 ### 3. License-across-clones smoke test
 
-Same shape as item 2 — destroy and re-clone, confirm OmniPlan launches
-without a license dialog. Cannot be done in trial mode; gated on item 1.
+**Status:** Could NOT be completed without a license. The fresh L3 clone
+exhibited the same OmniPlan hang as the persistent VM (auto-launched at
+boot — see "Auto-launch at boot" below — in headless trial-mode state
+that doesn't respond to AppleEvents). Without a license to install, the
+question of whether activation survives APFS cloning is moot.
+
+**Gated on item 1** (OmniGroup license reply). Once we have a license:
+1. Activate it in the persistent `omniplan-dev` VM.
+2. Stop the VM, push the layer with the activated license:
+   `tart push omniplan-dev umbridge.tail486ac0.ts.net:5051/tart/macos-15.7-l3-omniplan:v2-licensed`.
+3. `tart clone …:v2-licensed license-smoke-test`.
+4. Start the clone, attempt `evaluateJavascript`, observe whether OmniPlan
+   prompts for activation.
+
+### 4. Auto-launch at boot (discovered during smoke test)
+
+In the fresh L3 clone, OmniPlan was running (PID 788) immediately after
+boot, with no window visible and no documents open — and unresponsive
+to AppleEvents. The L3 image as built has either:
+- A LaunchAgent that starts OmniPlan at login, OR
+- macOS's "Reopen windows when logging back in" pref enabled.
+
+Headless launch + trial-mode dialog (which probably IS rendered, just not
+visible because the window has zero size or is positioned off-screen) is
+what produces the documented hang.
+
+**Fix when we rebuild the L3 image** (see "Building the L3 image" step 8):
+```bash
+tart-vm exec build-l3-omniplan-… zsh -l -c \
+  'defaults write com.omnigroup.OmniPlan4 NSQuitAlwaysKeepsWindows -bool false'
+# Also disable the system-wide auto-restore preference to be safe:
+tart-vm exec build-l3-omniplan-… zsh -l -c \
+  'defaults write -g NSQuitAlwaysKeepsWindows -bool false'
+```
+And remove any LaunchAgent that auto-launches OmniPlan if one exists at
+`~/Library/LaunchAgents/com.omnigroup.*.plist`.
 
 ## Building the L3 image (when next needed)
 
