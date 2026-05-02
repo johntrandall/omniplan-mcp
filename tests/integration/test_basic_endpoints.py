@@ -129,3 +129,74 @@ async def test_delete_task_removes_it(test_root: str) -> None:
 
     with pytest.raises(RuntimeError):
         await get_task(task_id=target["id"])
+
+
+# Regression sentinels for the v0.4.3 query_tasks bugs. Both shipped in
+# 0.4.0 and survived to 0.4.2 because the previous test suite never
+# combined keyword with another filter, and never exercised task_type
+# alone. If these tests go RED, one of two bugs has come back:
+#
+#   1. Filter clauses joined with `&&` but keyword filter contains `||`
+#      internally; without per-clause parens, JS precedence makes
+#      title-match short-circuit other filters. Fix: parenthesize each.
+#   2. task_type filter compared `String(t.type)` (e.g.
+#      `[object TaskType: TaskType.milestone]`) to bare type name and
+#      never matched. Fix: apply same regex normalization taskToObj uses.
+
+
+async def test_regression_query_tasks_combined_filters_use_AND_not_OR(test_root: str) -> None:
+    """Operator-precedence regression — see v0.4.3 CHANGELOG.
+
+    Setup: two tasks with the same keyword in their title, but only one
+    is a milestone. Filtering keyword + task_type=milestone must return
+    ONLY the milestone, not both.
+
+    The pre-v0.4.3 bug returned both because the keyword filter used
+    `||` internally and `&&` joining without parens let the title-match
+    short-circuit the type check.
+    """
+    await create_task(title="__test__regr_combined_t", parent_id=test_root, task_type="task")
+    await create_task(title="__test__regr_combined_m", parent_id=test_root, task_type="milestone")
+
+    raw = await query_tasks(keyword="__test__regr_combined", task_type="milestone")
+    matched_titles = {t["title"] for t in json.loads(raw)}
+
+    assert matched_titles == {"__test__regr_combined_m"}, (
+        f"query_tasks(keyword=K, task_type=milestone) returned {matched_titles!r}; "
+        f"expected only the milestone. If 'task' appears, the operator-precedence "
+        f"bug from v0.4.3 has regressed (filter clauses must each be parenthesized "
+        f"before joining with &&)."
+    )
+
+
+async def test_regression_query_tasks_task_type_alone_normalizes(test_root: str) -> None:
+    """TaskType normalization regression — see v0.4.3 CHANGELOG.
+
+    Setup: create one task and one milestone with NO shared keyword.
+    Filter by task_type=milestone WITHOUT a keyword. The filter must
+    select only the milestone.
+
+    The pre-v0.4.3 bug compared `String(t.type)` (which serializes as
+    `[object TaskType: TaskType.X]`) to the bare task_type string,
+    causing the filter to never match anything. The bug was masked
+    when combined with other filters; this test isolates it.
+    """
+    await create_task(title="__test__regr_norm_thing", parent_id=test_root, task_type="task")
+    await create_task(
+        title="__test__regr_norm_marker", parent_id=test_root, task_type="milestone"
+    )
+
+    raw = await query_tasks(task_type="milestone")
+    matched = json.loads(raw)
+    matched_titles = {t["title"] for t in matched}
+
+    assert "__test__regr_norm_marker" in matched_titles, (
+        "query_tasks(task_type=milestone) excluded our milestone — "
+        "the TaskType normalization bug from v0.4.3 has regressed. "
+        "Filter must apply the same regex chain that taskToObj uses "
+        "for output."
+    )
+    assert "__test__regr_norm_thing" not in matched_titles, (
+        "query_tasks(task_type=milestone) included a non-milestone task — "
+        "the filter is not actually excluding non-matching types."
+    )
