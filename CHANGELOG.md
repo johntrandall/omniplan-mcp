@@ -11,6 +11,28 @@ significant remaining upstream code (kept verbatim under MIT). At v0.4.0 the
 distribution was renamed to `mcp-omniplan-jtr` and the project posture
 changed from "fork" to "build inspired by". See `LICENSE` for attribution.
 
+## [0.4.2] - 2026-05-02
+
+### Fixed
+- `tasks.py` `fmtDate()` now uses `getUTC*` like `documents.py` did in
+  v0.4.1. Symptom: writing `2027-04-12` as a constraint date or
+  `manual_start_date` read back as `2027-04-11` in Eastern timezone.
+  Caught by manual MCP smoke run; same root cause as the v0.4.1
+  documents.py fix. Now applies to every date field on `task` /
+  `get_task` output (manual_start_date, manual_end_date,
+  start_no_earlier_than, start_no_later_than, end_no_earlier_than,
+  end_no_later_than, plus computed start_date / end_date).
+
+### Tests
+- `test_constraints.py` — four constraint-date round-trip tests now
+  assert against the input string (`TARGET_DATE`) instead of
+  cross-comparing two skewed values. The earlier
+  `assert constraint == manual` passed even when both were shifted
+  by one day. Plus a new `test_manual_start_date_persists_without_timezone_skew`
+  pins the manual setter directly. These would all have caught
+  v0.4.1's gap on first run; the gap survived because the asserts
+  were too weak.
+
 ## [0.4.1] - 2026-05-02
 
 ### Fixed

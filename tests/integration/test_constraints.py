@@ -57,7 +57,10 @@ async def test_set_start_no_earlier_than_persists(test_root: str) -> None:
         test_root, "sne", start_no_earlier_than=TARGET_DATE
     )
     assert constraint == manual
-    assert constraint is not None
+    assert constraint == TARGET_DATE, (
+        f"start_no_earlier_than read back as {constraint!r} but input was "
+        f"{TARGET_DATE!r} — timezone skew regression (see tasks.py fmtDate)"
+    )
 
 
 async def test_set_start_no_later_than_persists(test_root: str) -> None:
@@ -65,7 +68,10 @@ async def test_set_start_no_later_than_persists(test_root: str) -> None:
         test_root, "snl", start_no_later_than=TARGET_DATE
     )
     assert constraint == manual
-    assert constraint is not None
+    assert constraint == TARGET_DATE, (
+        f"start_no_later_than read back as {constraint!r} but input was "
+        f"{TARGET_DATE!r} — timezone skew regression (see tasks.py fmtDate)"
+    )
 
 
 async def test_set_end_no_earlier_than_persists(test_root: str) -> None:
@@ -73,7 +79,10 @@ async def test_set_end_no_earlier_than_persists(test_root: str) -> None:
         test_root, "ene", end_no_earlier_than=TARGET_DATE
     )
     assert constraint == manual
-    assert constraint is not None
+    assert constraint == TARGET_DATE, (
+        f"end_no_earlier_than read back as {constraint!r} but input was "
+        f"{TARGET_DATE!r} — timezone skew regression (see tasks.py fmtDate)"
+    )
 
 
 async def test_set_end_no_later_than_persists(test_root: str) -> None:
@@ -81,4 +90,25 @@ async def test_set_end_no_later_than_persists(test_root: str) -> None:
         test_root, "enl", end_no_later_than=TARGET_DATE
     )
     assert constraint == manual
-    assert constraint is not None
+    assert constraint == TARGET_DATE, (
+        f"end_no_later_than read back as {constraint!r} but input was "
+        f"{TARGET_DATE!r} — timezone skew regression (see tasks.py fmtDate)"
+    )
+
+
+async def test_manual_start_date_persists_without_timezone_skew(test_root: str) -> None:
+    """Regression for the same timezone bug applied to manual_start_date.
+
+    Earlier four tests had `assert constraint == manual` only. That passed
+    even when both fields were silently shifted by one day west of UTC.
+    This test pins manual_start_date itself to the input string so the
+    skew can't hide.
+    """
+    raw = await create_task(title="__test__constraint__mn", parent_id=test_root)
+    task = json.loads(raw)
+    await update_task(task_id=task["id"], manual_start_date=TARGET_DATE)
+    fresh = json.loads(await get_task(task_id=task["id"]))
+    assert fresh["manual_start_date"] == TARGET_DATE, (
+        f"manual_start_date read back as {fresh['manual_start_date']!r} but "
+        f"input was {TARGET_DATE!r} — timezone skew regression"
+    )

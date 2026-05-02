@@ -9,13 +9,20 @@ def _doc_selector() -> str:
 
 
 def _fmt_date() -> str:
-    """JS helper to format dates as YYYY-MM-DD."""
+    """JS helper to format dates as YYYY-MM-DD.
+
+    Use UTC components — ISO date strings ('2027-04-12') parse as UTC
+    midnight on write, so reading via local-time getters introduces a
+    one-day skew west of UTC. Symptom prior to fix: writing 2027-04-12
+    as a constraint date read back as 2027-04-11 in Eastern timezone.
+    Same fix as documents.py applied 2026-05-02.
+    """
     return """
 function fmtDate(d) {
   if (!d) return null;
-  var y = d.getFullYear();
-  var m = ('0' + (d.getMonth() + 1)).slice(-2);
-  var day = ('0' + d.getDate()).slice(-2);
+  var y = d.getUTCFullYear();
+  var m = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  var day = ('0' + d.getUTCDate()).slice(-2);
   return y + '-' + m + '-' + day;
 }
 """
