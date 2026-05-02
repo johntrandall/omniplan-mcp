@@ -42,6 +42,23 @@ async def test_get_project_info_shape() -> None:
         if info[key] is not None:
             assert len(info[key]) == 10 and info[key][4] == "-" and info[key][7] == "-"
 
+    # Independent cross-check: read the document name via JXA SDEF (a
+    # different code path from get_project_info's omniJS read). If
+    # get_project_info hard-coded its `name` field, the two would
+    # disagree.
+    from omniplan_mcp.jxa import run_jxa
+    sdef_raw = await run_jxa("""
+const docs = Application('OmniPlan').documents();
+JSON.stringify({ok: true, data: String(docs[0].name())})
+""")
+    sdef_name = json.loads(sdef_raw).get("data")
+    assert info["name"] == sdef_name, (
+        f"get_project_info().name = {info['name']!r} but independent "
+        f"JXA SDEF read of docs[0].name() = {sdef_name!r}. "
+        f"Either get_project_info is fabricating the name, or the doc "
+        f"changed between the two reads (unlikely in a test)."
+    )
+
 
 async def test_update_project_start_date_persists() -> None:
     original = json.loads(await get_project_info())["start_date"]

@@ -1,0 +1,26 @@
+# Pre-commit hooks for mcp-omniplan-jtr.
+#
+# The testing policy (dev-docs/testing-policy.md) says unit tests run
+# pre-commit. This config enforces that — install once with
+# `pre-commit install` and from then on every `git commit` will run
+# `pytest tests/unit/` before the commit lands.
+#
+# Unit tests are fast (<1s, no OmniPlan needed) and include the
+# vendor-docs alignment lint that catches doc-misreading regressions
+# at write time. Failing this hook should be rare; when it fires, fix
+# the underlying issue rather than `--no-verify` past it.
+#
+# Contract / workflow / e2e tests are NOT in this hook — they need a
+# running OmniPlan and would block commits when the app isn't open.
+# Those run pre-release via `scripts/pre-release-test.sh`.
+
+repos:
+  - repo: local
+    hooks:
+      - id: pytest-unit
+        name: pytest tests/unit/
+        entry: bash -c 'pytest tests/unit/ -q'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]

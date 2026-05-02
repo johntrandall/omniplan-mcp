@@ -33,16 +33,24 @@ pytestmark = pytest.mark.requires_omniplan
 
 
 def _front_doc_has_path() -> bool:
-    """True when the front OmniPlan document has been saved at least once."""
+    """True when the front OmniPlan document has been saved at least once.
+
+    Tries `path()` first, falls back to `file()` since `path()` throws
+    "Can't convert types (-1700)" on saved docs in macOS 15+ even though
+    the value exists. Same issue as the e2e helpers (commit f6aaa70).
+    """
     script = """
 const app = Application('OmniPlan');
 const docs = app.documents();
 if (docs.length === 0) {
   JSON.stringify({ ok: true, data: false });
 } else {
-  let p = null;
-  try { p = docs[0].path(); } catch (_) {}
-  JSON.stringify({ ok: true, data: p ? true : false });
+  let saved = false;
+  try { const p = docs[0].path(); if (p) saved = true; } catch (_) {}
+  if (!saved) {
+    try { const f = docs[0].file(); if (f) saved = true; } catch (_) {}
+  }
+  JSON.stringify({ ok: true, data: saved });
 }
 """
     raw = asyncio.run(run_jxa(script))
@@ -63,16 +71,37 @@ async def test_save_document_clears_modified_flag(test_root: str) -> None:
     # Make a change so the document is definitely dirty.
     await create_task(title="__test__save__make_dirty", parent_id=test_root)
 
+    # Independently confirm the doc IS dirty before save — catches the
+    # bug class where save_document hard-codes its return without
+    # actually exercising the underlying tool.
+    pre = await run_jxa("""
+const docs = Application('OmniPlan').documents();
+JSON.stringify({ok: true, data: docs[0].modified() ? 'dirty' : 'clean'})
+""")
+    assert json.loads(pre).get("data") == "dirty", (
+        "Pre-save: document not actually dirty after create_task — "
+        "test setup or create_task itself is broken."
+    )
+
     raw = await save_document()
     payload = json.loads(raw)
 
     assert payload["saved"] is True
     assert isinstance(payload["name"], str) and payload["name"]
-    # If the doc is on a save-able backing (i.e. has been saved at least once),
-    # the dirty flag clears. For brand-new "Untitled" docs, OmniPlan would
-    # surface a save sheet and the flag may stay set; we don't run against
-    # those in the test environment.
     assert payload["modified_after"] is False
+
+    # Independent post-save re-read of document.modified() via JXA — does
+    # not trust the response from save_document. If save_document fakes
+    # its return without actually saving, this assertion goes RED.
+    post = await run_jxa("""
+const docs = Application('OmniPlan').documents();
+JSON.stringify({ok: true, data: docs[0].modified() ? 'dirty' : 'clean'})
+""")
+    assert json.loads(post).get("data") == "clean", (
+        "Post-save: document.modified() is still true via independent "
+        "JXA re-read. save_document either didn't actually save, or "
+        "OmniPlan didn't accept the save."
+    )
 
 
 async def test_save_document_when_already_clean(test_root: str) -> None:

@@ -16,7 +16,7 @@ Four levels. No numbering — names alone suffice for a 1-domain codebase. Caden
 
 | Level | What | Mocked | Cadence |
 |---|---|---|---|
-| **unit** | Pure-Python helpers (jxa.py escape, envelope parsing, parameter serialization, vendor-docs lint logic) | All I/O | every commit (pre-commit hook) |
+| **unit** | Pure-Python helpers (jxa.py escape, envelope parsing, parameter serialization, vendor-docs lint logic) | All I/O | every commit (`.pre-commit-config.yaml` runs `pytest tests/unit/`; install once via `pre-commit install`) |
 | **contract** | Each tool wraps one omniJS API call. Test verifies the documented contract round-trips: write via tool → read back via tool → assert. | Nothing — real OmniPlan, real osascript | pre-release |
 | **workflow** | Multi-tool sequences exercising a real user story (create_task → add_dependency → assign_resource → save → reopen → assert state survives close). | Nothing | pre-release |
 | **e2e-live-xml** | Canonical write-paths for each tool category, plus a `.oplx` save → unzip → `Actual.xml` parse to confirm writes reached the underlying model, not just the JS context. | Nothing | pre-release |
