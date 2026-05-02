@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-omniplan-jtr"
-version = "0.4.0"
+version = "0.4.1"
 description = "MCP server that lets Claude (and other LLM agents) drive OmniPlan 4 on macOS via the omniJS bridge."
 readme = "README.md"
 license = { text = "MIT" }

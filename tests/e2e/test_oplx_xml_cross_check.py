@@ -51,7 +51,14 @@ async def _front_document_path() -> str | None:
     raw = await run_jxa("""
 const docs = Application('OmniPlan').documents();
 if (docs.length === 0) { 'null' }
-else { const p = docs[0].path(); p ? p : 'null' }
+else {
+  let s = 'null';
+  try { const p = docs[0].path(); if (p) s = String(p); } catch(_) {}
+  if (s === 'null') {
+    try { const f = docs[0].file(); if (f) s = String(f); } catch(_) {}
+  }
+  s
+}
 """)
     s = raw.strip()
     return None if s == "null" else s

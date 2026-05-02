@@ -38,8 +38,12 @@ const app = Application('OmniPlan');
 const docs = app.documents();
 if (docs.length === 0) { 'null' }
 else {
-  const p = docs[0].path();
-  p ? p : 'null'
+  let s = 'null';
+  try { const p = docs[0].path(); if (p) s = String(p); } catch(_) {}
+  if (s === 'null') {
+    try { const f = docs[0].file(); if (f) s = String(f); } catch(_) {}
+  }
+  s
 }
 """)
     return None if raw.strip() == "null" else raw.strip()

@@ -123,9 +123,12 @@ if (docs.length === 0) {
   const inner = JSON.parse(app.evaluateJavascript(`(function(){
     function fmt(date) {
       if (!date) return null;
-      var y = date.getFullYear();
-      var m = ('0' + (date.getMonth() + 1)).slice(-2);
-      var dd = ('0' + date.getDate()).slice(-2);
+      // Use UTC components — ISO date strings ('2027-03-15') parse as UTC
+      // midnight on write, so reading via local-time getters introduces a
+      // one-day skew west of UTC.
+      var y = date.getUTCFullYear();
+      var m = ('0' + (date.getUTCMonth() + 1)).slice(-2);
+      var dd = ('0' + date.getUTCDate()).slice(-2);
       return y + '-' + m + '-' + dd;
     }
     try {

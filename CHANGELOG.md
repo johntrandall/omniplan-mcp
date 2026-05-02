@@ -11,6 +11,29 @@ significant remaining upstream code (kept verbatim under MIT). At v0.4.0 the
 distribution was renamed to `mcp-omniplan-jtr` and the project posture
 changed from "fork" to "build inspired by". See `LICENSE` for attribution.
 
+## [0.4.1] - 2026-05-02
+
+### Fixed
+- `get_project_info` and any other date round-trip path through
+  `documents.py` now uses `getUTCFullYear/Month/Date` instead of
+  local-time getters. Writing an ISO date string parses as UTC
+  midnight, so reading via local-time getters introduced a one-day
+  skew west of UTC. The pre-existing `test_update_project_start_date_persists`
+  flake was the visible symptom; the bug applied to every date read
+  on a timezone-shifted host.
+- `tests/e2e/test_oplx_xml_cross_check.py` and
+  `tests/workflow/test_save_close_reopen.py` `_front_document_path()`
+  helper: tries `path()` first, falls back to `file()` if path()
+  raises `Can't convert types (-1700)`. The error happens with some
+  saved documents on macOS 15+ where the SDEF coercion of NSURL to
+  POSIX path fails. The production `get_project_info` already wraps
+  in try/catch; the test helpers were missing that defensive cast.
+
+### Added
+- Homebrew tap formula at `johntrandall/tap/mcp-omniplan-jtr` —
+  resource-bundled Python venv with all 36 transitive PyPI deps. Three
+  install paths now documented in README: brew tap / uv tool / pip.
+
 ## [0.4.0] - 2026-05-02
 
 ### Changed (BREAKING)
