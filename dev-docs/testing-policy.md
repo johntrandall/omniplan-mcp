@@ -1,6 +1,6 @@
 # omniplan-mcp Testing Policy
 
-> **Adapted from** [autocoder_v3 ac-testing-policy](file:///Users/johnrandall/dev/autocoder_v3/_bootstrap/policies/ac-testing-policy/MANIFESTO.md) — collapsed for a 1-domain, 1-external-system codebase. Verifier-pass corrections applied 2026-05-01.
+> Adapted from a multi-domain testing-intelligence policy (L1–L8 levels, lifecycle gates, mocking strategies) and collapsed for a 1-domain, 1-external-system codebase. Verifier-pass corrections applied 2026-05-01.
 
 ## Core beliefs
 
@@ -71,7 +71,7 @@ If a test isn't marked, it runs against whatever OmniPlan state the prior test l
 
 All `contract` / `workflow` / `e2e-live-xml` tests run inside a **persistent** Tart VM named `omniplan-dev`, NOT an ephemeral clone. Reasons:
 
-- **OmniPlan license activation** is unverified across APFS clones (no precedent in admin-technical for licensed Mac apps in cloned VMs). A persistent VM activates once and stays activated.
+- **OmniPlan license activation** is unverified across APFS clones (no precedent in our infrastructure for licensed Mac apps in cloned VMs). A persistent VM activates once and stays activated.
 - **Focus stealing** — running OmniPlan on the host interrupts the developer.
 - **Hermetic state** — the developer's host has Documents history, autorestore preferences, license, and TCC grants tied to their account; the VM is a known starting point.
 
@@ -131,10 +131,10 @@ This is a procedure, not a test level — drift detection itself is a one-line s
 
 ## References
 
-- autocoder_v3 ac-testing-policy: `~/dev/autocoder_v3/_bootstrap/policies/ac-testing-policy/MANIFESTO.md`
+- Source testing-intelligence policy (multi-domain, L1–L8 levels) — internal reference, not redistributable.
 - omniJS class docs: <https://omni-automation.com/omniplan/>
 - OmniPlan SDEF: `/Applications/OmniPlan.app/Contents/Resources/OmniPlan.sdef`
 - `omniplan-format` skill: `~/.claude/skills/omniplan-format/SKILL.md` — for `.oplx` XML structure
 - `tart-vm-management` skill: `~/.claude/skills/tart-vm-management/SKILL.md` — VM lifecycle
 - `troubleshooting-sanity` skill: `~/.claude/skills/troubleshooting-sanity/SKILL.md` — methodology that produced this policy
-- ADR-048 (VM Image Layer Architecture): `~/admin-technical/ADRs/ADR-048-VM-Image-Layer-Architecture.md` — TCC and SIP constraints
+- ADR-048 (VM Image Layer Architecture, internal) — TCC and SIP constraints. Summary: writes to `TCC.db` via sqlite3 require SIP off; SIP is only off at L1/L2 build time. L3 inherits SIP-on, so TCC grants must be added at L2 to be present in L3 clones.

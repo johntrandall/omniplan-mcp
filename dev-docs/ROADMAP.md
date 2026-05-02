@@ -192,7 +192,7 @@ Branch per feature, PR upstream as you go. Order:
 3. `feat/dependencies` — biggest single improvement. Ships add/remove/list together.
 4. `feat/save-document` — verify autosave behavior first; ship anyway.
 
-After Tier 0, smoke test against `a scratch .oplx` end-to-end. If qualitative gain over upstream is real, merge to `main` of our fork and tag `v0.2.0`. Update the `omniplan-local` MCP install in `~/admin-technical/setup/macos/omniplan-local/README.md` to point at our fork.
+After Tier 0, smoke test against a scratch `.oplx` end-to-end. If qualitative gain is real, tag `v0.2.0` and update any local install pointers.
 
 ### Phase 2 — Tier 1 features (week 2)
 
@@ -212,8 +212,8 @@ After Tier 0, smoke test against `a scratch .oplx` end-to-end. If qualitative ga
 
 ### Phase 4 — Productionize
 
-- Write ADR in `~/admin-technical/ADRs/` documenting the fork decision and trajectory.
-- Update `~/admin-technical/inventories/MCP-Server-Inventory.md` with new tool count.
+- Document the fork decision and trajectory in your project's ADR record.
+- Update any internal MCP-server inventory with the new tool count.
 - Decide: maintain fork indefinitely, or push for full upstream merge. Upstream is 2★, MIT, last-commit 2026-03-14 — likely accepts PRs but slow. Strategy: open PR per feature, run from fork in the meantime.
 
 ## Style and conventions

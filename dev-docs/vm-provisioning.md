@@ -124,7 +124,7 @@ point releases. Re-build when:
 
 5. **Activate the license** (interactive — requires John). SSH into the VM,
    `open -a OmniPlan`, paste the license from 1Password (`OmniPlan - License`
-   in JRVIS Personal). The license file lands at
+   in your password manager). The license file lands at
    `~/Library/Application Support/Omni Group/Software Licenses/`.
 
    (If we get a VM-friendly license per the OmniGroup email, this step
@@ -201,6 +201,6 @@ the ephemeral pattern for parallel test runs. Until then: one persistent VM.
 ## References
 
 - `~/.claude/skills/tart-vm-management/SKILL.md` — VM lifecycle + naming
-- `~/admin-technical/ADRs/ADR-048-VM-Image-Layer-Architecture.md` — TCC + SIP constraints
+- ADR-048 (VM Image Layer Architecture, internal) — TCC + SIP constraints. Summary: writes to `TCC.db` via sqlite3 require SIP off, which is only true at L1/L2 build time; L2 re-enables SIP, so L3 builds inherit SIP-on. TCC grants written at L2 survive APFS cloning into L3+ images.
 - `dev-docs/testing-policy.md` — why the VM exists at all
 - `dev-docs/drafts/omnigroup-vm-license-email.md` — pending licensing inquiry
