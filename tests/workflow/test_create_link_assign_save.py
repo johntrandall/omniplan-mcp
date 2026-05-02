@@ -66,8 +66,24 @@ async def test_full_gantt_workflow(test_root: str) -> None:
     asg = json.loads(asg_raw)
     assert asg["resource_id"] == r["id"]
 
-    document_path_check = await run_omnijs("return document.fileType;")
-    if document_path_check is None:
+    # Gate save_document on the doc actually having a saved path. Untitled
+    # docs would pop the Save As sheet and block the call. We probe via JXA
+    # SDEF since omniJS doesn't expose document.path; .file() is the working
+    # accessor (see e2e helpers).
+    from omniplan_mcp.jxa import run_jxa
+    raw_path = await run_jxa("""
+const docs = Application('OmniPlan').documents();
+if (docs.length === 0) { 'null' }
+else {
+  let s = 'null';
+  try { const p = docs[0].path(); if (p) s = String(p); } catch(_) {}
+  if (s === 'null') {
+    try { const f = docs[0].file(); if (f) s = String(f); } catch(_) {}
+  }
+  s
+}
+""")
+    if raw_path.strip() == "null":
         pytest.skip("Front document is unsaved; save_document would block.")
     save_result = json.loads(await save_document())
     assert save_result["saved"] is True

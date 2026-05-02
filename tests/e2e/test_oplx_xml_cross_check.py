@@ -134,15 +134,30 @@ async def test_dependency_landing_in_actual_xml(
 
     tree = _read_actual_xml(Path(path), tmp_path)
 
-    b_title_to_id: dict[str, str] = {}
+    # XML stores task ids as 't<omniJS_uniqueID>'; the prerequisite-task's
+    # idref must point at exactly task `a`, not just any task.
+    expected_predecessor_idref = f"t{a['id']}"
+
     for task_el in tree.iter(f"{NS}task"):
         title_el = task_el.find(f"{NS}title")
         if title_el is not None and title_el.text == "__test__xml_dep_b":
-            b_title_to_id["b"] = task_el.get("id") or ""
             prereqs = task_el.findall(f"{NS}prerequisite-task")
             assert prereqs, (
                 "Dependency wrote via add_dependency() did not appear as "
                 "<prerequisite-task> on the successor in Actual.xml."
+            )
+            idrefs = [p.get("idref") for p in prereqs]
+            assert expected_predecessor_idref in idrefs, (
+                f"Dependency's <prerequisite-task> idref={idrefs!r} but "
+                f"add_dependency() was called with predecessor_id={a['id']!r} "
+                f"(expected idref={expected_predecessor_idref!r}). The "
+                f"dependency was wired to the wrong predecessor."
+            )
+            kinds = [p.get("kind") for p in prereqs if p.get("idref") == expected_predecessor_idref]
+            # FS (Finish-to-Start) is the OmniPlan default; XML omits the
+            # `kind` attribute when it's FS. None or "FS" both indicate FS.
+            assert kinds and all(k in (None, "FS") for k in kinds), (
+                f"Dependency kind in XML is {kinds!r}, expected None (default FS) or 'FS'."
             )
             return
     pytest.fail("Successor task not found in XML.")

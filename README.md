@@ -4,7 +4,7 @@
 
 Tell an agent "create a milestone called Beta Launch under the Deployment group, link it after the QA-complete task, and assign it to Alice." It does. The Gantt redraws.
 
-19 tools across tasks, dependencies, resources, assignments, and project metadata. MIT-licensed. macOS only.
+20 tools across tasks, dependencies, resources, assignments, and project metadata. MIT-licensed. macOS only.
 
 > **Lineage:** this build is *inspired by* [`xiahan4956/omniplan-mcp`](https://github.com/xiahan4956/omniplan-mcp) (MIT) — the original `jxa.py` bridge is reused under MIT. The rest of the codebase was rebuilt from scratch (~86% of current LOC). It's distributed under a distinct PyPI name (`mcp-omniplan-jtr`) so as not to take the original author's namespace. See [`CHANGELOG.md`](CHANGELOG.md) for what changed.
 
@@ -31,7 +31,7 @@ Tell an agent "create a milestone called Beta Launch under the Deployment group,
 Pick whichever you prefer:
 
 ```bash
-# 1. Homebrew tap (resolves Python deps via brew, isolates from your system Python)
+# 1. Homebrew tap (Python deps bundled in an isolated venv; only python@3.13 comes from brew)
 brew tap johntrandall/tap
 brew install mcp-omniplan-jtr
 ```
@@ -124,7 +124,9 @@ All tools accept an optional `document_name` parameter. If omitted, the frontmos
 OmniPlan 4.10.2's omniJS surface has a few small gaps. Most tools work transparently; these are the documented edges:
 
 - **Task reparenting is not exposed** — there's no `task.moveTo` in the omniJS API. If you need to move a task to a different parent group, do it in the OmniPlan UI; the MCP can't.
-- **Resource working hours and project currency** are not editable through this MCP — those properties don't round-trip through the omniJS bridge.
+- **Resource working hours** are not editable through this MCP — `actual.rootResource.schedule` is opaque on the omniJS surface.
+- **Project currency** (`actual.currency`) is not exposed for the same reason — writes via omniJS don't persist across calls. Cost values themselves work; just not the currency unit.
+- **`Decimal` round-trip** — `cost_per_use` reads back through a documented-toString regex parse (no documented number-extraction accessor on `Decimal`). Internal; transparent to callers.
 - **OmniPlan must be running** with a document open. The MCP doesn't launch OmniPlan or open documents for you.
 
 For the full catalogue (and the mitigations), see [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md).

@@ -87,6 +87,65 @@ changed from "fork" to "build inspired by". See `LICENSE` for attribution.
 
 ## [Unreleased]
 
+(none.)
+
+## [0.4.3] - 2026-05-02
+
+### Fixed
+- `query_tasks` filter clauses are now parenthesized before joining with
+  `&&`. The keyword filter uses `||` internally; without explicit parens,
+  JS's `&&`-binds-tighter-than-`||` precedence let any title-match
+  short-circuit subsequent `task_type` / `completed` / `due_*` filters.
+  Symptom: `query_tasks(keyword="X", task_type="milestone")` returned
+  every task whose title matched X regardless of type. Caught by the
+  new `tests/integration/test_basic_endpoints.py` suite.
+- `query_tasks` `task_type` filter normalization now matches what
+  `taskToObj` produces. Previously the filter compared
+  `String(t.type)` (e.g. `[object TaskType: TaskType.milestone]`)
+  to the bare task_type string, which never matched. Filter now
+  applies the same regex chain `taskToObj` uses for output.
+
+### Tests
+- New `tests/integration/test_basic_endpoints.py` covers four endpoints
+  the verifier flagged as untested: `list_documents`, `query_tasks`,
+  `get_task`, `delete_task`. Round-trip tests for keyword/completed/
+  task_type filters, error path on unknown task_id, full-shape
+  assertion for `get_task`, and a delete-then-confirm-gone for
+  `delete_task`.
+- `tests/integration/test_resources.py` `test_create_resource_round_trip`
+  now re-reads via `list_resources` to confirm the create persisted
+  rather than just echoing the input.
+- `tests/e2e/test_oplx_xml_cross_check.py` `test_dependency_landing_in_actual_xml`
+  now asserts the `prerequisite-task` `idref` matches the actual
+  predecessor task's id (previously only checked existence).
+- `tests/workflow/test_create_link_assign_save.py` skip gate fixed:
+  the previous probe used `run_omnijs("return document.fileType;")`
+  and compared the awaited string to `None`, which never fired the
+  skip on Untitled documents. Now uses the same JXA-SDEF path-or-file
+  probe as the e2e tests.
+
+### Docs
+- `README.md` tool count corrected from 19 to 20 (was stale since
+  `list_assignments` shipped without a count update).
+- `README.md` install snippet for the brew tap re-described:
+  Python deps are bundled in an isolated venv, only `python@3.13`
+  comes from brew. Previous wording said "deps via brew" which was
+  misleading.
+- `README.md` Limitations expanded: `actual.currency` ambiguity and
+  `Decimal.toString` regex workaround now surfaced (previously only
+  in `dev-docs/omnijs-persistence-gaps.md`).
+- `CHANGELOG.md` `[Unreleased]` block consolidated into the v0.4.0
+  section since those features shipped at v0.4.0; pre-existing
+  v0.3.0 "BLOCKED" claims forward-pointed to the v0.4.0 retraction.
+
+## [0.4.2] - 2026-05-02
+
+## [0.4.0] (continued — Tier 1 work)
+
+The Tier 1 features below shipped at v0.4.0 alongside the rename. They
+were tracked under "Unreleased" prior to the 2026-05-02 cut and merged
+into this section after the verifier-pass review.
+
 ### Added
 - `update_task` accepts `start_no_earlier_than`, `start_no_later_than`,
   `end_no_earlier_than`, and `end_no_later_than` (ISO date strings, or
@@ -101,7 +160,8 @@ changed from "fork" to "build inspired by". See `LICENSE` for attribution.
   omniJS Task class. The documented names work as expected.
 - `list_assignments(task_id) -> [{resource_id, resource_name,
   units_assigned}]` — exposes per-task assignment info that
-  `list_resources` doesn't cover.
+  `list_resources` doesn't cover. (Note: this brings the tool count
+  from 19 to 20; the v0.3.0 entry below is pre-`list_assignments`.)
 
 ### Fixed
 - `list_dependencies` and `add_dependency` now round-trip
@@ -132,6 +192,14 @@ changed from "fork" to "build inspired by". See `LICENSE` for attribution.
   Tier 1 status updated — constraints flipped from BLOCKED to shipped.
 
 ## [0.3.0] - 2026-05-01
+
+> **Note:** Several "BLOCKED" claims in this entry were retracted at
+> v0.4.0 — see the v0.4.0 (continued — Tier 1 work) section above for
+> what shipped after the doc re-read. Specifically, constraint dates,
+> `dep.leadTimeDuration`, `assignment.units` (renamed `unitsAssigned`),
+> and `proj.scenarios` (renamed `baselineNames`) all work; the v0.3.0
+> "blocked" framing was based on probing under SDEF AppleScript names
+> that don't exist on the omniJS surface.
 
 Tier 1 of the fork roadmap (`dev-docs/ROADMAP.md`): adds
 project-info, bulk task creation, resource CRUD + assignments, and

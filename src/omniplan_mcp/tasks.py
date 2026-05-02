@@ -119,7 +119,15 @@ async def query_tasks(
         kw = json.dumps(keyword.lower())
         filters.append(f"(t.title || '').toLowerCase().includes({kw}) || (t.note || '').toLowerCase().includes({kw})")
     if task_type:
-        filters.append(f"String(t.type).replace('TaskType.', '') === {json.dumps(task_type)}")
+        # Use the same normalization taskToObj uses for the output `type`
+        # field — see helper in _task_to_obj. The previous form
+        # (`String(t.type).replace('TaskType.', '')`) never matched because
+        # `String(t.type)` actually serializes as
+        # `[object TaskType: TaskType.milestone]` and the unhandled prefix
+        # / trailing bracket were left in.
+        filters.append(
+            f"String(t.type).replace(/.*TaskType:\\s*/, '').replace('TaskType.', '').replace(']', '').trim() === {json.dumps(task_type)}"
+        )
     if completed is True:
         filters.append("(t.effortDone >= t.effort && t.effort > 0)")
     elif completed is False:
@@ -129,7 +137,11 @@ async def query_tasks(
     if due_after:
         filters.append(f"t.endDate && t.endDate > new Date({json.dumps(due_after)})")
 
-    filter_expr = " && ".join(filters) if filters else "true"
+    # Parenthesize each clause before joining with &&. The keyword filter
+    # uses `||` internally; without explicit parens, JS operator precedence
+    # (`&&` binds tighter than `||`) made the keyword's title-match alone
+    # short-circuit any subsequent task_type / completed / date filter.
+    filter_expr = " && ".join(f"({f})" for f in filters) if filters else "true"
 
     script = f"""
 {doc_sel}

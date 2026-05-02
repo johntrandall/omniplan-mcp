@@ -52,6 +52,20 @@ async def test_create_resource_round_trip(test_root: str) -> None:
     assert r["cost_per_use"] == 125.50
     assert isinstance(r["id"], str) and r["id"]
 
+    # Re-read via list_resources to confirm the create actually persisted
+    # (not just echoed the input). Catches a class of bug where the tool
+    # appears to succeed but writes nothing.
+    listed = json.loads(await list_resources())
+    found = next((res for res in listed if res["id"] == r["id"]), None)
+    assert found is not None, (
+        f"create_resource returned id={r['id']!r} but list_resources "
+        f"doesn't see it — write didn't persist."
+    )
+    assert found["name"] == "__test__rsrc_alice"
+    assert found["type"] == "staff"
+    assert found["email"] == "alice@example.com"
+    assert found["cost_per_use"] == 125.50
+
 
 async def test_list_resources_includes_created(test_root: str) -> None:
     a = json.loads(await create_resource(name="__test__rsrc_list_a", type="staff"))
