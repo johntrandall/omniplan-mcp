@@ -1,70 +1,38 @@
 # Vendor-docs allowlist for tests/unit/test_vendor_docs_alignment.py.
 #
-# Identifiers that legitimately don't appear verbatim in vendor docs at
-# https://omni-automation.com/omniplan/. One identifier per line. Comment lines
-# start with #.
+# Identifiers our shipped JS reaches but that legitimately don't appear
+# in the omni-automation.com snapshot at tests/vendor-docs-snapshot/.
+# One identifier per line. Comment lines start with #.
 #
-# When adding an entry, write a one-line reason on the comment line above.
-# When removing one (because the docs now cover it), delete both lines.
+# When adding an entry, write the rationale on the comment line above.
+# When the docs catch up, delete both lines.
+#
+# Note (2026-05-02): the lint now uses exact-set membership against
+# parsed snapshot bullets, not substring search. The previous ~40-entry
+# allowlist was inflated dead code — most entries had no effect because
+# they were named with a `prefix.` form, while the lint compares only
+# bare property names against the snapshot. The current minimal list is
+# what's actually needed.
 
-# Built-in JavaScript / Cocoa Date methods used in our omniJS strings.
-Date.toISOString
-Date.getTime
-
-# Local helper variable names in our omniJS templates — `task`, `t`, `r`,
-# `dep`, `a` etc. as iteration variables happen to match documented class
-# instance prefixes; their .property accesses are real omniJS identifiers
-# and ARE checked. Helpers we declare locally:
-task.title
-task.note
-task.completed
-task.color
-task.note
-
-# Locally-allocated arrays and helper objects we walk inside the JS:
-out.push
-arr.length
-victims.push
-
-# Result builders (pure JS object construction):
-obj.id
-obj.title
-obj.outline_id
-obj.parent_id
-obj.completion
-obj.color_index
-obj.note
-obj.start_date
-obj.end_date
-obj.manual_start_date
-obj.manual_end_date
-obj.effort_seconds
-obj.effort_done_seconds
-obj.start_no_earlier_than
-obj.start_no_later_than
-obj.end_no_earlier_than
-obj.end_no_later_than
-
-# JSON.stringify() return values that look like obj.X:
-result.push
-result.parent_set
-result.parentTask_set
-result.parent_err
-result.parentTask_err
-
-# Internal helpers we declare:
-g.members
-m.name
-m.members
-
-# JXA SDEF properties on the AppleScript Document object, NOT omniJS. We
-# use them inside `documents.py` because the omniJS Document/PlanDocument
-# class doesn't expose these (file URL/path nor a `modified` accessor).
-# Reachable via `app.documents()[0].path()` / `.modified()` — JXA SDEF
-# surface, called through the AppleScript bridge.
+# JXA SDEF properties on the AppleScript Document object — NOT omniJS.
+# Used inside src/omniplan_mcp/documents.py because the omniJS
+# Document/PlanDocument class doesn't expose file URL or a `modified`
+# accessor; we reach `app.documents()[0].path()` and `.modified()`
+# through the AppleScript bridge instead.
 modified
 path
 
-# Probed-but-not-real identifiers (used in test/probe scripts, never shipped
-# as production omniJS): these are excluded from the lint by virtue of not
-# living under src/omniplan_mcp/, so no allowlist entries needed.
+# JavaScript built-in Date methods used inside our omniJS fmtDate helpers.
+# These belong to ECMAScript, not the omniJS class surface.
+getUTCDate
+getUTCFullYear
+getUTCMonth
+
+# Identifiers that appear only in Python docstrings (not in shipped JS).
+# The lint extracts from every triple-quoted string in src/, which is
+# over-broad on purpose — false-positives are cheaper than blind spots.
+# `currency` is mentioned in documents.py docstring explaining why we
+# don't ship it; `parent` is mentioned in tasks.py docstring explaining
+# why parent_id is computed via traversal. Neither is reached at runtime.
+currency
+parent

@@ -14,8 +14,8 @@ Methodology:
    triple-quoted string fragment that gets passed into `run_omnijs(...)` or
    embedded as a JS template within `_RESOURCE_OBJ_HELPER` etc.
 2. Inside those strings, find identifiers of the form
-   `(task|dep|assignment|r|actual|proj|doc|root|t|a|res|d)\.([A-Za-z_][A-Za-z_0-9]*)`
-   and constants `(Duration|DependencyKind|ResourceType|Decimal|Document|TaskType)\.([A-Za-z_][A-Za-z_0-9]*)`.
+   ``(task|dep|assignment|r|actual|proj|doc|root|t|a|res|d)\\.(...)``
+   and constants ``(Duration|DependencyKind|ResourceType|Decimal|Document|TaskType)\\.(...)``.
 3. Strip allow-list entries (helper variables, project-internal names).
 4. Concatenate every .md file under `tests/vendor-docs-snapshot/` and
    assert each remaining identifier appears verbatim.
@@ -82,14 +82,18 @@ CONST_PATTERN = re.compile(
     r"\b(" + "|".join(CONSTANT_PREFIXES) + r")\.([A-Za-z_][A-Za-z_0-9]*)"
 )
 
+# Match every triple-quoted block in src/. Almost all such blocks in this
+# codebase are JS templates passed to run_omnijs / run_jxa or returned
+# from helper functions like `_task_to_obj()`. A narrower per-call-site
+# pattern list (the previous form) had blind spots — taskToObj's body
+# wasn't extracted because it lived inside `return _fmt_date() + """..."""`,
+# which didn't match any of the named patterns. Catching every triple-quote
+# is over-broad but safe: identifiers we extract that aren't real omniJS
+# names (Python docstrings, etc.) still pass through the snapshot/allowlist
+# filter, so over-extraction can only ADD allowlist entries, not skip
+# real bugs.
 JS_FRAGMENT_PATTERNS = [
-    re.compile(r'run_omnijs\s*\(\s*"""(.*?)"""', re.DOTALL),
-    re.compile(r'run_omnijs\s*\(\s*f?"""(.*?)"""', re.DOTALL),
-    re.compile(r"run_omnijs\s*\(\s*\"(.*?)\"\)", re.DOTALL),
-    re.compile(r'_RESOURCE_OBJ_HELPER\s*=\s*"""(.*?)"""', re.DOTALL),
-    re.compile(r'_TASK_TO_OBJ_FRAGMENT\s*=\s*"""(.*?)"""', re.DOTALL),
-    re.compile(r"script\s*=\s*f?\"\"\"(.*?)\"\"\"", re.DOTALL),
-    re.compile(r"wrapped\s*=\s*f?\"\"\"(.*?)\"\"\"", re.DOTALL),
+    re.compile(r'f?"""(.*?)"""', re.DOTALL),
 ]
 
 
@@ -122,23 +126,57 @@ def _extract_identifiers(fragments: list[str]) -> set[str]:
     return found
 
 
-def _snapshot_text() -> str:
+_BULLET_PATTERN = re.compile(r"^\s*[-*]\s+(?:`)?([A-Za-z_][A-Za-z_0-9.]*)(?:`)?\s*$")
+
+
+def _snapshot_identifiers() -> set[str]:
+    """Parse every markdown bullet in the snapshot dir into an exact-match
+    set of identifiers.
+
+    Snapshot files use markdown bullets like:
+      - title
+      - workSeconds
+      - Duration.workSeconds
+      - DependencyKind.FinishStart
+
+    Returns the bare identifier (`title`) AND the dotted form
+    (`Duration.workSeconds`) so both OBJ_PATTERN matches (just the
+    property) and CONST_PATTERN matches (`Class.method`) can be checked
+    against the snapshot.
+
+    The previous implementation concatenated the snapshot as raw text and
+    used substring search, which let a typo like `task.titl` pass because
+    "titl" is a substring of "title". Exact set membership closes that
+    gap.
+    """
     if not SNAPSHOT_DIR.exists():
-        return ""
-    parts = [p.read_text() for p in SNAPSHOT_DIR.rglob("*.md")]
-    return "\n".join(parts)
+        return set()
+    out: set[str] = set()
+    for path in SNAPSHOT_DIR.rglob("*.md"):
+        for line in path.read_text().splitlines():
+            m = _BULLET_PATTERN.match(line)
+            if not m:
+                continue
+            ident = m.group(1)
+            out.add(ident)
+            # If the snapshot lists a dotted form like `Duration.workSeconds`,
+            # also expose the bare suffix (`workSeconds`) so OBJ_PATTERN
+            # matches resolve.
+            if "." in ident:
+                out.add(ident.rsplit(".", 1)[1])
+    return out
 
 
 @pytest.fixture(scope="module")
-def snapshot() -> str:
-    text = _snapshot_text()
-    if not text:
+def snapshot() -> set[str]:
+    idents = _snapshot_identifiers()
+    if not idents:
         pytest.skip(
             "No vendor-docs snapshot under tests/vendor-docs-snapshot/. "
             "Run scripts/refresh-vendor-docs-snapshot.py (or capture manually) "
             "before pre-release."
         )
-    return text
+    return idents
 
 
 @pytest.fixture(scope="module")
@@ -151,8 +189,28 @@ def identifiers_in_use() -> set[str]:
     return _extract_identifiers(_extract_js_fragments())
 
 
+def test_snapshot_loader_uses_exact_match_not_substring(snapshot: set[str]) -> None:
+    """Regression for the substring-leak bug closed 2026-05-02.
+
+    Previously the snapshot was joined as raw text and `identifier in
+    snapshot` did substring search, so a typo like `task.titl` passed
+    because `"titl" in "title"` is True. This test asserts the snapshot
+    is now an exact-membership set: `title` is in, common prefixes are
+    not.
+    """
+    assert "title" in snapshot
+    assert "titl" not in snapshot, (
+        "snapshot is not an exact-match set — substring leak regressed. "
+        "A typo like `task.titl` would silently pass the alignment lint."
+    )
+    assert "not" not in snapshot, (
+        "`note` should be in the snapshot, but `not` should not — "
+        "exact membership regression."
+    )
+
+
 def test_every_omnijs_identifier_appears_in_vendor_docs(
-    snapshot: str, allowlist: set[str], identifiers_in_use: set[str]
+    snapshot: set[str], allowlist: set[str], identifiers_in_use: set[str]
 ) -> None:
     missing: list[str] = []
     for identifier in sorted(identifiers_in_use):
