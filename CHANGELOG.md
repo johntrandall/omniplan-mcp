@@ -1,8 +1,44 @@
 # Changelog
 
-All notable changes to this fork of `omniplan-mcp`. Versioning follows
-[Semantic Versioning](https://semver.org/); the upstream baseline is `v0.1.0`
-(commit `b235768`).
+All notable changes to `mcp-omniplan-jtr`. Versioning follows
+[Semantic Versioning](https://semver.org/).
+
+The project started as a fork of
+[`xiahan4956/omniplan-mcp`](https://github.com/xiahan4956/omniplan-mcp) at
+commit `b235768` (their `v0.1.0`). After Tier 0/1 work landed, ~86% of LOC
+was new and the JXA bridge in `src/omniplan_mcp/jxa.py` was the only
+significant remaining upstream code (kept verbatim under MIT). At v0.4.0 the
+distribution was renamed to `mcp-omniplan-jtr` and the project posture
+changed from "fork" to "build inspired by". See `LICENSE` for attribution.
+
+## [0.4.0] - 2026-05-02
+
+### Changed (BREAKING)
+- **Renamed PyPI distribution from `omniplan-mcp` to `mcp-omniplan-jtr`.**
+  The CLI command renamed from `omniplan-mcp` to `mcp-omniplan-jtr`; users
+  re-registering with Claude Code or Claude Desktop must update their MCP
+  config. The Python import name (`omniplan_mcp`) is unchanged — visible
+  only to developers extending the package.
+- **Lineage reframed from "fork" to "inspired by"** in the README, since
+  ~86% of current LOC is new and the project's direction is now
+  independent from upstream. Original author still credited in `LICENSE`.
+- **Removed `upstream` git remote** and dropped fork-style PR-upstreaming
+  workflow. Subsequent feature work is committed directly to `main`.
+- **Added `LICENSE`** (MIT) with dual copyright — John Randall for the
+  current project and xiahan4956 for the original `jxa.py` bridge that
+  remains in the codebase.
+- **Project metadata** (`description`, `license`, `authors`, `classifiers`,
+  URLs) populated in `pyproject.toml` for PyPI publication.
+
+### Docs
+- **README rewritten as consumer-facing** — install instructions, what-it-
+  does table, example prompts. Geekier content moved to
+  `dev-docs/README-DEV.md`.
+- **`dev-docs/README-DEV.md` added** — architecture, tool-extension recipe,
+  vendor-docs reference, editable-install workflow, lineage notes.
+- **Redacted private-host paths and project-specific filenames from
+  `dev-docs/ROADMAP.md`** — local vendor-docs mirror references replaced
+  with the canonical public URL at <https://omni-automation.com/omniplan/>.
 
 ## [Unreleased]
 

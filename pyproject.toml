@@ -3,10 +3,27 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omniplan-mcp"
-version = "0.3.0"
+name = "mcp-omniplan-jtr"
+version = "0.4.0"
+description = "MCP server that lets Claude (and other LLM agents) drive OmniPlan 4 on macOS via the omniJS bridge."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "John Randall", email = "john@johnrandall.com" }]
 requires-python = ">=3.11"
 dependencies = ["mcp[cli]"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: MacOS X",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development",
+]
+
+[project.urls]
+Homepage = "https://github.com/johntrandall/omniplan-mcp"
+Issues = "https://github.com/johntrandall/omniplan-mcp/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -15,7 +32,7 @@ dev = [
 ]
 
 [project.scripts]
-omniplan-mcp = "omniplan_mcp.__main__:main"
+mcp-omniplan-jtr = "omniplan_mcp.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

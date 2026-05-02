@@ -1,68 +1,62 @@
-# omniplan-mcp
+# mcp-omniplan-jtr
 
-MCP server for [OmniPlan 4](https://www.omnigroup.com/omniplan) on macOS. Manage your project tasks with natural language via Claude or any MCP-compatible client.
+**Drive [OmniPlan 4](https://www.omnigroup.com/omniplan) on macOS from Claude (or any MCP-compatible LLM agent) using natural language.**
 
-> **This is johntrandall's active fork** of [xiahan4956/omniplan-mcp](https://github.com/xiahan4956/omniplan-mcp). Upstream shipped 6 task-CRUD tools as v0.1.0; this fork is at **v0.3.0** with **19 tools** and adds dependencies, three-point estimates, name lookup, project info, bulk creation, resource CRUD, and explicit save. See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for the full roadmap and [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md) for the omniJS limitations we hit and the sentinel tests that watch for fixes. PRs are sent upstream as features ship; this fork is the daily driver until they merge.
+Tell an agent "create a milestone called Beta Launch under the Deployment group, link it after the QA-complete task, and assign it to Alice." It does. The Gantt redraws.
 
-## Reference material
+19 tools across tasks, dependencies, resources, assignments, and project metadata. MIT-licensed. macOS only.
 
-- **[Omni Automation API for OmniPlan](https://omni-automation.com/omniplan/index.html)** — the canonical omniJS reference. The bridge in [`src/omniplan_mcp/jxa.py`](src/omniplan_mcp/jxa.py) wraps `Application('OmniPlan').evaluateJavascript(...)` so every tool is a small omniJS snippet against this API.
-- **[Omni Automation JXA/AppleScript bridge](https://omni-automation.com/jxa-applescript.html)** — describes the `evaluateJavascript` AppleEvent we use.
-- **OmniPlan AppleScript dictionary (SDEF)** — `/Applications/OmniPlan.app/Contents/Resources/OmniPlan.sdef` (~1450 lines). Legacy surface but still authoritative for class/property names.
-- **Local vendor-docs mirror** (this Mac, John's setup) — partial offline copies under [`~/dev/zVendorDocs/OmniPlan/`](file:///Users/johnrandall/dev/zVendorDocs/OmniPlan/):
-  - `omni-automation-website-v4.10.2-2026-05-01/` — **only 8 top-level pages** (index, big-picture, application, setup, tutorial, actions, conference-example, conference-fetch-example). Deep API pages (Tasks/Dependencies/Resources/Documents) were **not** mirrored — fetch from `https://omni-automation.com/omniplan/` online when needed.
-  - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF + per-suite breakdown. Authoritative for class/property names. **Use as fallback when omniJS docs are missing.**
-  - `reference-manual-mac-v4.5.5-2026-05-01/` — OmniPlan user manual (concept reference for views, inspectors, terminology).
+> **Lineage:** this build is *inspired by* [`xiahan4956/omniplan-mcp`](https://github.com/xiahan4956/omniplan-mcp) (MIT) — the original `jxa.py` bridge is reused under MIT. The rest of the codebase was rebuilt from scratch (~86% of current LOC). It's distributed under a distinct PyPI name (`mcp-omniplan-jtr`) so as not to take the original author's namespace. See [`CHANGELOG.md`](CHANGELOG.md) for what changed.
 
-See [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) "Verified vs unverified API claims" for which omniJS signatures are confirmed vs. educated guesses.
+## What it does
+
+| You say | The agent calls | OmniPlan reflects |
+|---|---|---|
+| "Show me incomplete tasks due this week" | `query_tasks(due_before=…, completed=false)` | filters the outline |
+| "Create a 4-hour task 'Refactor login' under Auth" | `create_task(parent_id, effort_seconds=14400)` | new row in the Gantt |
+| "Link 'Refactor login' before 'Run E2E'" | `add_dependency(predecessor_id, successor_id, kind="FS")` | dependency arrow drawn |
+| "Assign Alice at 50%" | `assign_resource(task_id, resource_id, units=0.5)` | assignment chip on the bar |
+| "Mark Beta Launch as a milestone, color green" | `update_task(type="milestone", color="green")` | diamond marker, green |
+| "Save the document" | `save_document()` | written to disk |
 
 ## Requirements
 
-- macOS
-- OmniPlan 4 (must be running)
+- macOS (any recent version)
+- OmniPlan 4 — installed and running with a document open
 - Python 3.11+
-- Automation permission granted to your terminal / MCP host app
+- Automation permission granted to your terminal / MCP host app (System Settings → Privacy & Security → Automation → enable OmniPlan)
 
-## Installation
-
-This fork (`v0.3.0`, 19 tools) — pinned to the tag because `origin/main`
-hasn't yet caught up to the v0.3.0 commits (a harness rule on the original
-author's machine prevents direct pushes to main):
+## Install
 
 ```bash
-uv tool install --from "git+https://github.com/johntrandall/omniplan-mcp.git@v0.3.0" omniplan-mcp
+uv tool install mcp-omniplan-jtr
 ```
 
-Or clone and install in editable mode:
+Or, if you don't have [uv](https://github.com/astral-sh/uv):
 
 ```bash
-git clone --branch v0.3.0 https://github.com/johntrandall/omniplan-mcp.git
-cd omniplan-mcp
-pip install -e .
+pip install mcp-omniplan-jtr
 ```
 
-Upstream baseline (`v0.1.0`, 6 tools):
+This installs the `mcp-omniplan-jtr` command. Register it as an MCP server with whichever client you use:
+
+### Claude Code (CLI)
 
 ```bash
-pip install git+https://github.com/xiahan4956/omniplan-mcp.git
+claude mcp add -s user omniplan-local mcp-omniplan-jtr
 ```
 
-### Grant Automation Permission
+Then restart Claude Code.
 
-The first time you run the server, macOS may prompt for Automation access. If not, grant it manually:
-
-**System Settings → Privacy & Security → Automation** — enable OmniPlan for your terminal or the app running the MCP server.
-
-## Claude Desktop Configuration
+### Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "omniplan": {
-      "command": "python3",
-      "args": ["-m", "omniplan_mcp"]
+    "omniplan-local": {
+      "command": "mcp-omniplan-jtr"
     }
   }
 }
@@ -70,74 +64,72 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 Then restart Claude Desktop.
 
+### First call — Automation permission
+
+The first time the agent calls a tool, macOS may prompt for Automation access. Approve OmniPlan automation for your terminal or the app running the MCP server. If the prompt was missed, grant it manually:
+
+**System Settings → Privacy & Security → Automation** — enable OmniPlan for your terminal or MCP host.
+
+If denied, every tool returns a clear error: `"macOS blocked Automation access to OmniPlan. Grant permission in System Settings > Privacy & Security > Automation."`
+
 ## Tools
 
-| Tool | Description |
-|------|-------------|
+| Tool | What it does |
+|---|---|
 | `list_documents` | List all currently open OmniPlan documents |
 | `query_tasks` | Search and filter tasks by keyword, type, completion, color, or date range |
+| `find_task` | Look up tasks by title; substring by default, exact opt-in |
 | `get_task` | Get full details of a task by ID |
-| `create_task` | Create a new task under a parent task or project root (effort + 3-point estimate fields supported) |
-| `create_tasks` | Bulk-create many tasks in a single round-trip; supports intra-batch `parent_index` |
-| `update_task` | Update task fields (title, note, dates, completion, color, effort + 3-point estimate) |
-| `find_task` | Look up tasks by title; returns `[{id, title, outline_id}]` (substring by default, exact opt-in) |
+| `create_task` | Create a new task under a parent task or project root |
+| `create_tasks` | Bulk-create many tasks in a single round-trip; supports intra-batch parent references |
+| `update_task` | Update title, note, dates, completion, color, effort, three-point estimates, constraint dates |
 | `delete_task` | Delete a task by ID |
 | `add_dependency` | Link two tasks (FS / SS / FF / SF, optional lead time) |
 | `remove_dependency` | Remove the dependency between two tasks |
 | `list_dependencies` | List dependencies in the document (or filtered to one task) |
-| `save_document` | Save the front document to disk; returns `{saved, name, modified_after}` |
-| `get_project_info` | Returns `{name, path, start_date, end_date, scenarios}` |
-| `update_project` | Update project-level fields (currently `start_date` only) |
-| `list_resources` | List all resources (`{id, name, type, email, cost_per_use}`) |
-| `create_resource` | Create a resource (staff / equipment / material / group); supports `cost_per_use` |
-| `delete_resource` | Delete a resource by ID; OmniPlan strips its assignments |
-| `assign_resource` | Assign a resource to a task (optional `units`) |
+| `save_document` | Save the front document to disk |
+| `get_project_info` | Project metadata: name, path, dates, scenarios |
+| `update_project` | Update project-level fields (currently start date) |
+| `list_resources` | List all resources |
+| `create_resource` | Create a resource (staff / equipment / material / group) |
+| `delete_resource` | Delete a resource by ID |
+| `assign_resource` | Assign a resource to a task with optional units fraction |
 | `unassign_resource` | Remove a resource assignment from a task |
-| `list_assignments` | List a task's resource assignments (`{resource_id, resource_name, units_assigned}`) |
+| `list_assignments` | List a task's resource assignments |
 
 All tools accept an optional `document_name` parameter. If omitted, the frontmost open document is used.
 
-### query_tasks parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `keyword` | string | Filter by title or note (case-insensitive) |
-| `task_type` | string | `task` / `group` / `milestone` / `hammock` |
-| `completed` | boolean | `true` = completed only, `false` = incomplete only |
-| `color` | string | `red` / `orange` / `yellow` / `green` / `blue` / `purple` / `brown` / `gray` / `clear` |
-| `due_before` | string | ISO date, e.g. `2025-12-31` |
-| `due_after` | string | ISO date, e.g. `2025-01-01` |
-| `limit` | int | Max results (default 50) |
-
-### update_task parameters
-
-Pass only the fields you want to change. Set `completed: true` to mark a task done, or `color: "clear"` to reset the bar color.
-
-## Known omniJS limitations
-
-After cross-referencing the canonical class docs at
-<https://omni-automation.com/omniplan/> and re-probing under documented names, the
-real gaps are smaller than an earlier draft of this README claimed. We document
-them in [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md)
-and ship `xfail(strict=True)` sentinel tests that go RED if OmniGroup fixes them.
-
-| Gap | Affects |
-|---|---|
-| No `task.moveTo` / `reparent` (verified by three failed paths plus saved-bundle XML) | `move_task` not implemented; sentinel at `tests/integration/test_move_task.py` |
-| `r.costPerUse` is `Decimal` with no documented number-extraction accessor | `resources.py` regex-parses `String(d)` to recover the value (internal) |
-| `actual.currency` — write doesn't persist across calls (probed only) | omitted from `update_project` |
-| `actual.rootResource.schedule` opaque on read | working-hours editing deferred |
-
-## Example Prompts
+## Example prompts
 
 > "Show me all incomplete tasks due this week in my project."
 
-> "Create a milestone called 'Beta Launch' under the Deployment group."
+> "Create a milestone called 'Beta Launch' under the Deployment group, dependent on 'QA-complete', and assign it to Alice at 50%."
 
 > "Mark task 42 as complete and set its bar color to green."
 
 > "What tasks are assigned the red color?"
 
+> "List every resource and how much they're allocated across the project."
+
+## Limitations
+
+OmniPlan 4.10.2's omniJS surface has a few small gaps. Most tools work transparently; these are the documented edges:
+
+- **Task reparenting is not exposed** — there's no `task.moveTo` in the omniJS API. If you need to move a task to a different parent group, do it in the OmniPlan UI; the MCP can't.
+- **Resource working hours and project currency** are not editable through this MCP — those properties don't round-trip through the omniJS bridge.
+- **OmniPlan must be running** with a document open. The MCP doesn't launch OmniPlan or open documents for you.
+
+For the full catalogue (and the mitigations), see [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md).
+
+## For developers
+
+If you want to extend, hack on, or contribute to this MCP:
+
+- **Architecture & internals:** [`dev-docs/README-DEV.md`](dev-docs/README-DEV.md)
+- **Roadmap & feature tiers:** [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md)
+- **Testing policy:** [`dev-docs/testing-policy.md`](dev-docs/testing-policy.md)
+- **VM provisioning for the pre-release test runner:** [`dev-docs/vm-provisioning.md`](dev-docs/vm-provisioning.md)
+
 ## License
 
-MIT
+MIT. See [`LICENSE`](LICENSE).

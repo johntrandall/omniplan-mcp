@@ -24,12 +24,12 @@ This fork extends coverage so Claude can drive a real Gantt: dependencies, resou
 
 ## Prerequisites for any feature work
 
-1. **Read vendor docs first.** They live in `~/dev/zVendorDocs/OmniPlan/` (downloaded 2026-05-01):
-   - `omni-automation-website-v4.10.2-2026-05-01/` — partial mirror of `omni-automation.com/omniplan/`. **Only 8 top-level pages were captured** (`index.md`, `big-picture.md`, `application.md`, `setup.md`, `tutorial.md`, `actions.md`, `conference-example.md`, `conference-fetch-example.md`). Deep API pages (Tasks, Dependencies, Resources, Documents) were **not** mirrored — fetch them online from `https://omni-automation.com/omniplan/` as needed.
-   - `applescript-dictionary-v4.10.2-2026-05-01/` — SDEF + per-suite breakdowns. Authoritative for class/property names. **Use this when omniJS docs are missing.**
-   - `reference-manual-mac-v4.5.5-2026-05-01/` — user manual (concept reference for inspectors, views, terminology).
+1. **Read vendor docs first.** Canonical URLs:
+   - **omniJS API for OmniPlan:** <https://omni-automation.com/omniplan/> — the primary surface. Class pages (Task, Dependency, Resource, Document, Project, Scenario, Duration) document every property and method. We keep a snapshot at `tests/vendor-docs-snapshot/` so the unit-level alignment lint can run offline.
+   - **OmniPlan AppleScript dictionary (SDEF):** `/Applications/OmniPlan.app/Contents/Resources/OmniPlan.sdef` — fallback for class/property names when the omniJS docs are silent.
+   - **OmniPlan reference manual:** <https://support.omnigroup.com/documentation/omniplan/> — concept reference for inspectors, views, terminology.
 2. **The bridge architecture is settled.** `osascript -l JavaScript` → `Application('OmniPlan').evaluateJavascript(...)` runs an omniJS string inside the running app and returns its value across the AppleEvent boundary. See `src/omniplan_mcp/jxa.py`. Don't touch this; it's the only nontrivial plumbing.
-3. **Test environment.** OmniPlan must be running with `funding-pipeline.oplx` (or another scratch doc) open. macOS Automation TCC must be granted. Use marker-prefixed task names (`__test__*`) so the cleanup pass is unambiguous. See `Testing` section.
+3. **Test environment.** OmniPlan must be running with `a scratch .oplx` (or another scratch doc) open. macOS Automation TCC must be granted. Use marker-prefixed task names (`__test__*`) so the cleanup pass is unambiguous. See `Testing` section.
 
 ## Verified API surface (probed live 2026-05-01, OmniPlan 4.10.2)
 
@@ -162,7 +162,7 @@ async def test_add_finish_start_dependency():
 ### 3. End-to-end smoke (`tests/e2e/`)
 
 Manual scripts plus a checklist doc. Run before each release:
-1. Fresh OmniPlan launch, fresh `funding-pipeline.oplx` (git-restored).
+1. Fresh OmniPlan launch, fresh `a scratch .oplx` (git-restored).
 2. Fresh Claude Code session.
 3. Drive a real planning scenario from a transcript: create 10 tasks, link 5 dependencies, set efforts, level resources, baseline, save.
 4. Diff the resulting `.oplx` against expected-state. Catches "feels different" UX regressions.
@@ -192,7 +192,7 @@ Branch per feature, PR upstream as you go. Order:
 3. `feat/dependencies` — biggest single improvement. Ships add/remove/list together.
 4. `feat/save-document` — verify autosave behavior first; ship anyway.
 
-After Tier 0, smoke test against `funding-pipeline.oplx` end-to-end. If qualitative gain over upstream is real, merge to `main` of our fork and tag `v0.2.0`. Update the `omniplan-local` MCP install in `~/admin-technical/setup/macos/omniplan-local/README.md` to point at our fork.
+After Tier 0, smoke test against `a scratch .oplx` end-to-end. If qualitative gain over upstream is real, merge to `main` of our fork and tag `v0.2.0`. Update the `omniplan-local` MCP install in `~/admin-technical/setup/macos/omniplan-local/README.md` to point at our fork.
 
 ### Phase 2 — Tier 1 features (week 2)
 
