@@ -28,17 +28,25 @@ Tell an agent "create a milestone called Beta Launch under the Deployment group,
 
 ## Install
 
+Pick whichever you prefer:
+
 ```bash
+# 1. Homebrew tap (resolves Python deps via brew, isolates from your system Python)
+brew tap johntrandall/tap
+brew install mcp-omniplan-jtr
+```
+
+```bash
+# 2. uv tool (recommended for the MCP ecosystem; installs from PyPI)
 uv tool install mcp-omniplan-jtr
 ```
 
-Or, if you don't have [uv](https://github.com/astral-sh/uv):
-
 ```bash
+# 3. pip (if you don't have uv)
 pip install mcp-omniplan-jtr
 ```
 
-This installs the `mcp-omniplan-jtr` command. Register it as an MCP server with whichever client you use:
+All three install the `mcp-omniplan-jtr` command. Register it as an MCP server with whichever client you use:
 
 ### Claude Code (CLI)
 
