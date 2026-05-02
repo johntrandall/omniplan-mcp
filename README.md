@@ -140,18 +140,12 @@ If you want to extend, hack on, or contribute to this MCP:
 
 ## Related projects
 
-Sibling work in the same Omni-Group ecosystem:
+Sibling OmniPlan tooling in the same workflow:
 
-**Sibling MCPs (drive other Omni apps via agents):**
-- [`mcp_omnifocus-take2`](https://github.com/johntrandall/mcp_omnifocus-take2) — MCP server for OmniFocus. Same idea, different app: let an agent drive your task system through natural language.
-- *OmniGraffle MCP* — planned next.
-
-**OmniPlan companion tooling:**
 - [`oplx-tools`](https://github.com/johntrandall/oplx-tools) — Python toolkit for OmniPlan `.oplx` documents: generate, lint, parse. Useful when you want to build a Gantt from a database or CI pipeline rather than the GUI.
 - [`oplx-format`](https://github.com/johntrandall/oplx-format) — Community-maintained file-format specification for `.oplx` documents (verified against OmniPlan 4.10.2). Reference doc that informed both `oplx-tools` and the e2e XML cross-checks in this MCP's test suite.
 
-**Cross-system bridges:**
-- [`task_bridge`](https://github.com/johntrandall/task_bridge) — Syncs OmniFocus tasks to an external service. Earlier Ruby project; now superseded by the MCP-driven workflow above for agent use cases.
+OmniGraffle MCP is planned next.
 
 ## License
 
