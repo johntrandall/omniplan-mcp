@@ -145,8 +145,6 @@ Sibling OmniPlan tooling in the same workflow:
 - [`oplx-tools`](https://github.com/johntrandall/oplx-tools) — Python toolkit for OmniPlan `.oplx` documents: generate, lint, parse. Useful when you want to build a Gantt from a database or CI pipeline rather than the GUI.
 - [`oplx-format`](https://github.com/johntrandall/oplx-format) — Community-maintained file-format specification for `.oplx` documents (verified against OmniPlan 4.10.2). Reference doc that informed both `oplx-tools` and the e2e XML cross-checks in this MCP's test suite.
 
-OmniGraffle MCP is planned next.
-
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
