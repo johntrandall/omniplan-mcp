@@ -103,21 +103,46 @@ email to John (does not send). Manage at
 
 ## Blocked — gated on the above
 
-### 7. L3 VM image rebuild
+### 7. L3 VM image rebuild — ✅ DONE 2026-05-03 (smoke test deferred)
 
-Currently the running `omniplan-dev` is an L3 clone (cloned from
-`macos-15.7-l3-omniplan` and now licensed by hand). A clean L3 rebuild
-incorporating today's improvements is needed:
+Pushed to OCI: `umbridge.tail486ac0.ts.net:5051/tart/macos-15.7-l3-omniplan:v2-licensed`
+(SHA `e7d89a9b3198e7c4149b989f56a11b471404be5a4a27dccab53fe86222314705`).
 
-- Bake the activated license into the L3 image (or document that license
-  must be re-activated per clone, depending on OmniGroup's reply on #6)
-- `defaults write com.omnigroup.OmniPlan4 NSQuitAlwaysKeepsWindows -bool false`
-- Remove any LaunchAgent that auto-launches OmniPlan at boot (silent
-  trial-dialog blocking root cause from earlier in the session)
-- Record OmniPlan build SHA at `~/.omniplan-mcp-baseline-build`
-- Push the new image: `umbridge.tail486ac0.ts.net:5051/tart/macos-15.7-l3-omniplan:v2-licensed`
+Baked-in changes:
+- OmniPlan 4 Pro license activated
+- `com.omnigroup.OmniPlan4 NSQuitAlwaysKeepsWindows = false`
+- Global `NSQuitAlwaysKeepsWindows = false`
+- `~/.omniplan-mcp-baseline-build` records OmniPlan build `232.5.0`
 
-Procedure documented in `dev-docs/vm-provisioning.md`.
+Labels: `omniplan-build=232.5.0` and `license=pro`.
+
+LaunchAgents inspected: only `com.cua.computer-server.plist` and
+`org.cirruslabs.tart-guest-agent.plist` are present — neither auto-launches
+OmniPlan. The earlier "auto-launch at boot" symptom was macOS state
+restoration, fixed by `NSQuitAlwaysKeepsWindows = false`.
+
+**Smoke test deferred:** a fresh clone of `:v2-licensed` failed to get
+a DHCP lease on the Tart bridge (same issue intermittently hit earlier
+in the session). Likely transient; retry with the wrapper's longer wait
+window or stop other VMs first. The image push itself succeeded; the
+content is in the registry.
+
+### 7a. Smoke-test the new L3 image (next session)
+
+Verify `:v2-licensed` clones boot cleanly, retain the license, and
+respond to AppleEvents. Procedure:
+
+```bash
+tart-vm stop omniplan-dev   # free the bridge slot
+tart-vm start l3-smoke --from "umbridge.tail486ac0.ts.net:5051/tart/macos-15.7-l3-omniplan:v2-licensed"
+tart-vm ssh l3-smoke 'osascript -l JavaScript -e "Application(\"OmniPlan\").documents().length"'
+# Expect: a number, no -1712 timeout, no trial dialog
+tart-vm destroy l3-smoke
+tart-vm start omniplan-dev   # restore working state
+```
+
+If clones reliably get an IP and respond cleanly, the L3 image is
+verified end-to-end and the pre-release runner (#8) becomes runnable.
 
 ### 8. Pre-release runner end-to-end
 
