@@ -43,17 +43,26 @@ afterMove:  { childParentTitle: "PROBE-parentB", parentACount: 0, parentBCount: 
 dependency/assignment references by changing `uniqueID`. This API
 preserves `uniqueID`, so the existing dependency graph survives a move.
 
-## Resource.move — accessor exists, functional test deferred
+## Resource.move — Verified (signature parity with Task)
 
-`Resource.prototype.move` is present (descriptor `accessor(get+set)` at
-depth 0). I did not run a functional probe because the existing codebase
-creates resources via `rootResource.addMember()` (members tree, not
-`addChildResource`), and verifying Resource.move's signature is enough
-follow-up to keep separate from this beta evaluation.
+Probed with `rootResource.addMember()` to create three resources, then
+`r3.move(r1, 0)` to nest one under another:
 
-**Likely identical signature** (`resource.move(newParent, index)`) given
-Ken's email said the same accessor + method were added to both classes,
-but unverified.
+```
+proto:           { parent: "missing"(*), move: "accessor",
+                   addMember: "accessor", remove: "accessor",
+                   members: "missing"(*) }
+instanceParent:  { r3ParentName: "Project", r3ParentIsRoot: true }
+afterMove:       { r3ParentName: "PROBE-r-A", r3ParentIsR1: true,
+                   r1MemberCount: 1, r1Names: ["PROBE-r-child"] }
+```
+
+(*) `parent` and `members` are missing from the prototype walk but work
+as instance accessors — same hidden-accessor pattern as Task.
+
+**Signature confirmed:** `resource.move(newParent, index)` — same as
+Task.move, both args required. The probe's first attempt
+(`r3.move(r1, 0)`) succeeded; the fallback chain wasn't exercised.
 
 ## Decimal toString — Verified
 

@@ -620,6 +620,96 @@ return hits;
 
 
 @mcp.tool()
+async def move_task(
+    task_id: str,
+    new_parent_id: Optional[str] = None,
+    index: Optional[int] = None,
+) -> str:
+    """Reparent a task without changing its uniqueID.
+
+    Wraps the omniJS `task.move(newParent, index)` method introduced in
+    OmniPlan 4.10.3 (build v232.5.9, 2026-05-06). Both omniJS args are
+    required at the API level; this tool fills in `index` with
+    `newParent.subtasks.length` (append at end) when the caller omits it.
+
+    Because uniqueID is preserved across the move, dependencies and
+    resource assignments that reference the moved task stay intact —
+    no clone-and-rebuild required.
+
+    Args:
+        task_id: uniqueID of the task to move.
+        new_parent_id: uniqueID of the destination parent. If omitted,
+            the task is moved to the document root.
+        index: 0-based position in `new_parent.subtasks` after the move.
+            If omitted, the task is appended at the end.
+
+    Returns:
+        JSON `{moved: true, id, new_parent_id, index}` where `id` is the
+        unchanged uniqueID, `new_parent_id` is the resolved parent's
+        uniqueID (root's `-1` if moved to root), and `index` is the
+        final position used.
+    """
+    doc_sel = _doc_selector()
+
+    new_parent_arg = json.dumps(new_parent_id)
+    index_arg = "null" if index is None else str(int(index))
+
+    script = f"""
+{doc_sel}
+
+function findById(task, id) {{
+  if (String(task.uniqueID) === id) return task;
+  for (const child of task.subtasks) {{
+    const found = findById(child, id);
+    if (found) return found;
+  }}
+  return null;
+}}
+
+const root = _proj.actual.rootTask;
+const targetId = {json.dumps(task_id)};
+const task = findById(root, targetId);
+if (!task) throw new Error('Task not found: ' + targetId);
+
+const newParentId = {new_parent_arg};
+let newParent;
+if (newParentId === null) {{
+  newParent = root;
+}} else {{
+  newParent = findById(root, newParentId);
+  if (!newParent) throw new Error('New parent task not found: ' + newParentId);
+}}
+
+if (newParent === task) {{
+  throw new Error('Cannot move a task into itself');
+}}
+let cursor = newParent;
+while (cursor) {{
+  if (cursor === task) throw new Error('Cannot move a task into one of its own descendants');
+  cursor = cursor.parent;
+}}
+
+let idx = {index_arg};
+if (idx === null) idx = newParent.subtasks.length;
+if (idx < 0 || idx > newParent.subtasks.length) {{
+  throw new Error('index out of range: ' + idx + ' (newParent has '
+                   + newParent.subtasks.length + ' subtasks)');
+}}
+
+task.move(newParent, idx);
+
+return {{
+  moved: true,
+  id: String(task.uniqueID),
+  new_parent_id: String(newParent.uniqueID),
+  index: idx,
+}};
+"""
+    result = await run_omnijs(script)
+    return json.dumps(result)
+
+
+@mcp.tool()
 async def delete_task(
     task_id: str,
 ) -> str:

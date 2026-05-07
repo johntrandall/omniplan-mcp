@@ -38,9 +38,15 @@ _RESOURCE_OBJ_HELPER = """
 function decimalToFloat(d) {
   if (d === null || d === undefined) return null;
   if (typeof d === 'number') return d;
-  // String(Decimal) is "[object Decimal: 100.00]"; pull the number.
-  var m = String(d).match(/Decimal:\\s*(-?[0-9.]+)/);
-  return m ? parseFloat(m[1]) : null;
+  // Per Ken Case @ Omni (OG #3107771, 2026-05-06): `d.toString()` returns
+  // the numeric form directly. `String(d)` goes through a different path
+  // that produces "[object Decimal: 100]" — that's what the previous
+  // regex was working around. Verified against OmniPlan 4.10.3 v232.5.9
+  // (Decimal.fromString("100.00").toString() === "100"; trailing zeros
+  // dropped, "100.50" → "100.5").
+  var s = d.toString();
+  var f = parseFloat(s);
+  return isNaN(f) ? null : f;
 }
 function typeName(t) {
   // String(ResourceType.staff) is "[object ResourceType: staff]".
