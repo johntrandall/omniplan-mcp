@@ -1,6 +1,7 @@
 # OmniPlan omniJS Surface Gaps
 
-**Verified empirically against OmniPlan 4.10.2 (build 232.5.0) on macOS 15.7.3, 2026-05-01.**
+**Originally verified against OmniPlan 4.10.2 (build 232.5.0) on macOS 15.7.3, 2026-05-01.**
+**Both gaps closed in OmniPlan 4.10.3 (test build v232.5.9, 2026-05-06) — see "Status: closed in 4.10.3+" notes inline below.**
 
 This document catalogues every property/method on the omniJS surface that this fork
 probed and found to be missing or inadequate under the standard
@@ -10,23 +11,38 @@ After cross-referencing the canonical class docs at <https://omni-automation.com
 and probing every documented setter, the surface is much smaller than an earlier
 draft of this doc claimed. **Most of the "persistence gaps" reported in earlier
 drafts were us probing under SDEF AppleScript names that don't exist on the omniJS
-classes.** The surviving gaps are limited to:
+classes.** The surviving 4.10.2 gaps were limited to:
 
 1. One missing method (task reparenting) — confirmed via three failed paths plus
-   a saved-bundle XML inspection.
+   a saved-bundle XML inspection. **Closed in 4.10.3** — `task.move(parent, index)`
+   and `resource.move(parent, index)` shipped per OG ticket #3107771. MCP surfaces
+   them as `move_task` / `move_resource` (v0.4.5+).
 2. One read-side wart (`Decimal.toString` requires regex parsing) — there's no
-   documented number-extraction accessor.
+   documented number-extraction accessor. **Closed in 4.10.3 (clarification, not
+   API change)** — Ken Case @ Omni confirmed `Decimal.fromString(s).toString()`
+   returns the numeric form directly (`"100"`); only `String(d)` produces the
+   `"[object Decimal: 100]"` wrapper. The regex workaround is retired in v0.4.5;
+   the helper handles both shapes for backward-compat with 4.10.2.
 
-When OmniGroup ships a release that closes either gap, the corresponding
-`pytest.mark.xfail(strict=True)` sentinel test goes RED.
+The historical detail below is preserved as the empirical record that drove the
+OmniGroup conversation (OG #3107771) and the v0.4.5 ship.
+
+See `dev-docs/beta-v232.5.9-probe-results.md` for the full beta verification report.
 
 ---
 
-## 1. Missing methods (no omniJS equivalent for SDEF operations)
+## 1. Missing methods (no omniJS equivalent for SDEF operations) — CLOSED in 4.10.3
 
-| Operation | SDEF | omniJS | Branch / sentinel |
+**Status: closed in OmniPlan 4.10.3 (build v232.5.7+, public release imminent).**
+The MCP exposes the new API as `move_task` / `move_resource` from v0.4.5 onward.
+On older builds those tools raise a clear "requires 4.10.3+" error.
+
+The historical 4.10.2 gap (preserved for context):
+
+| Operation | SDEF | omniJS in 4.10.2 | omniJS in 4.10.3 |
 |---|---|---|---|
-| Move task to new parent / sibling | `move` (NSMoveCommand) | none — no `moveTo` / `insertAfter` / `reparent` / `appendTo` / `prependTo` / `subtasks.push(...)` mutation / `task.parent = ...` assignment | `feat/move-task` — `tests/integration/test_move_task.py::test_move_task_method_exists` |
+| Move task to new parent / sibling | `move` (NSMoveCommand) | none — no `moveTo` / `insertAfter` / `reparent` / `appendTo` / `prependTo` / `subtasks.push(...)` mutation / `task.parent = ...` assignment | **`task.move(newParent, index)`** — both args required; `uniqueID` preserved |
+| Move resource within group hierarchy | `move` (NSMoveCommand) | (same gap) | **`resource.move(newParent, index)`** — same signature, signature parity verified |
 
 **How we verified:** three failure paths, all silent no-ops on the omniJS side.
 
@@ -61,11 +77,21 @@ every dependency, assignment, and ID reference made against the old task.
 
 ---
 
-## 2. Read-side opacity workarounds
+## 2. Read-side opacity workarounds — Decimal CLOSED via clarification
 
-| Property / API | Returns | Workaround in this fork |
+**Status: Decimal closed in 4.10.3+ (the API was always there; the wart was that
+we were calling it wrong).** Per Ken Case @ Omni (OG #3107771, 2026-05-06):
+`Decimal.fromString(s).toString()` returns the numeric form directly. Only
+`String(d)` (which goes through a different coercion path) produces the
+`"[object Decimal: 100]"` wrapper that the regex was working around.
+
+The MCP's `decimalToFloat` helper now uses the direct path with a backward-compat
+fallback to the wrapper-form regex, in case 4.10.2's `toString()` returned the
+wrapper form (untested on 4.10.2; the fallback covers both shapes).
+
+| Property / API | Returns | Recovery |
 |---|---|---|
-| `r.costPerUse` | `Decimal` | `String(d)` is `"[object Decimal: 100]"`. We regex `Decimal:\s*(-?[0-9.]+)` to recover the number. **Note:** `Decimal.fromString("100.00")` round-trips with trailing zeros collapsed, so `100.00` reads back as `100`. The documented `Decimal` class has `add` / `subtract` / `multiply` / `divide` / `compare` / `equals` / `toString` — no number-extraction accessor. |
+| `r.costPerUse` | `Decimal` | `d.toString()` returns the numeric string directly on 4.10.3+. MCP helper falls back to regex extraction if `toString()` returns the wrapper form (4.10.2 behavior unverified). Trailing zeros are still dropped — `Decimal.fromString("100.00")` reads back as `"100"`, `"100.50"` reads back as `"100.5"` — by NSDecimalNumber design. The documented `Decimal` class has `add` / `subtract` / `multiply` / `divide` / `compare` / `equals` / `toString`; no separate number-extraction accessor exists or is planned (Decimal is `NSDecimalNumber` representation; lossy float round-trips are intentional). |
 
 `Duration` is **not** opaque. The documented accessors `workSeconds`,
 `elapsedSeconds`, `elapsedDays`, `elapsed` (Boolean), and friends round-trip

@@ -161,10 +161,6 @@ changed from "fork" to "build inspired by". See `LICENSE` for attribution.
   `dev-docs/ROADMAP.md`** — local vendor-docs mirror references replaced
   with the canonical public URL at <https://omni-automation.com/omniplan/>.
 
-## [Unreleased]
-
-(none.)
-
 ## [0.4.3] - 2026-05-02
 
 ### Fixed
@@ -214,9 +210,7 @@ changed from "fork" to "build inspired by". See `LICENSE` for attribution.
   section since those features shipped at v0.4.0; pre-existing
   v0.3.0 "BLOCKED" claims forward-pointed to the v0.4.0 retraction.
 
-## [0.4.2] - 2026-05-02
-
-## [0.4.0] (continued — Tier 1 work)
+## [0.4.0] (continued — Tier 1 work shipped at the v0.4.0 cut)
 
 The Tier 1 features below shipped at v0.4.0 alongside the rename. They
 were tracked under "Unreleased" prior to the 2026-05-02 cut and merged
