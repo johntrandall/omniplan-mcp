@@ -137,14 +137,18 @@ async def test_move_task_preserves_dependencies(test_root: str) -> None:
         successor_id=successor["id"],
     )
     deps_before = json.loads(await list_dependencies(task_id=successor["id"]))
-    assert any(d["predecessor_id"] == predecessor["id"] for d in deps_before["predecessors"])
+    assert any(
+        d["predecessor_id"] == predecessor["id"] and d["successor_id"] == successor["id"]
+        for d in deps_before
+    ), f"setup failure: dependency missing before move; deps={deps_before}"
 
     await move_task(task_id=successor["id"], new_parent_id=parent_b["id"])
 
     deps_after = json.loads(await list_dependencies(task_id=successor["id"]))
-    assert any(d["predecessor_id"] == predecessor["id"] for d in deps_after["predecessors"]), (
-        "dependency must survive a move because uniqueID is preserved"
-    )
+    assert any(
+        d["predecessor_id"] == predecessor["id"] and d["successor_id"] == successor["id"]
+        for d in deps_after
+    ), "dependency must survive a move because uniqueID is preserved"
 
 
 async def test_move_task_into_self_rejected(test_root: str) -> None:
