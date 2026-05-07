@@ -11,6 +11,49 @@ significant remaining upstream code (kept verbatim under MIT). At v0.4.0 the
 distribution was renamed to `mcp-omniplan-jtr` and the project posture
 changed from "fork" to "build inspired by". See `LICENSE` for attribution.
 
+## [0.4.4] - 2026-05-07
+
+### Added
+- **`move_task(task_id, new_parent_id?, index?)`** — reparent a task
+  without changing its uniqueID. Wraps the new omniJS
+  `task.move(newParent, index)` shipped in OmniPlan 4.10.3 (test build
+  v232.5.9, 2026-05-06) per OmniGroup support ticket OG #3107771.
+  Cycle/self-move guards. `new_parent_id` defaults to root.
+- **`move_resource(resource_id, new_parent_id?, index?)`** — same shape
+  as `move_task`, wraps `resource.move(newParent, index)` (also new in
+  4.10.3). Resources have a `members` tree rather than `subtasks`;
+  signature is otherwise identical.
+
+### Changed
+- **`decimalToFloat` simplified** in `src/omniplan_mcp/resources.py`.
+  The previous regex `String(d).match(/Decimal:\s*…/)` was a workaround
+  for `String(Decimal)` returning the wrapper form
+  `"[object Decimal: 100]"`. Per Ken Case @ Omni (OG #3107771,
+  2026-05-06), `d.toString()` returns the numeric form directly. The
+  regex is gone; we now do `parseFloat(d.toString())`. All existing
+  resource integration tests still pass.
+
+### Tests
+- 8 new integration tests in `tests/integration/test_move_task.py`
+  replace the `xfail(strict=True)` sentinel: reparent + uniqueID
+  preserved, default-end index, explicit index, move-to-root,
+  dependency survival, self-move rejected, descendant-cycle rejected,
+  unknown-id rejected.
+- 8 new integration tests in `tests/integration/test_move_resource.py`
+  mirror the move_task suite plus an assignment-survival check
+  (assignments on a moved resource survive because uniqueID is
+  preserved).
+
+### Compatibility
+- Requires OmniPlan 4.10.3+ for the move tools. The two new tools
+  raise an omniJS-side error on older builds (`task.move is not a
+  function` / `resource.move is not a function`); other tools and the
+  Decimal change work on 4.10.2 unchanged.
+
+### Notes
+- See `dev-docs/beta-v232.5.9-probe-results.md` for the empirical
+  probe report that drove this release.
+
 ## [0.4.2] - 2026-05-02
 
 ### Fixed

@@ -148,6 +148,94 @@ return resourceToObj(r);
 
 
 @mcp.tool()
+async def move_resource(
+    resource_id: str,
+    new_parent_id: Optional[str] = None,
+    index: Optional[int] = None,
+) -> str:
+    """Reparent a resource without changing its uniqueID.
+
+    Wraps the omniJS `resource.move(newParent, index)` method introduced
+    in OmniPlan 4.10.3 (build v232.5.9, 2026-05-06). Both omniJS args
+    are required at the API level; this tool fills in `index` with
+    `newParent.members.length` (append at end) when omitted.
+
+    Because uniqueID is preserved across the move, assignments that
+    reference the moved resource stay intact — no clone-and-rebuild.
+
+    Args:
+        resource_id: uniqueID of the resource to move.
+        new_parent_id: uniqueID of the destination group resource. If
+            omitted, the resource is moved under the document's
+            rootResource.
+        index: 0-based position in `new_parent.members`. If omitted,
+            appended at the end.
+
+    Returns:
+        JSON `{moved: true, id, new_parent_id, index}` where `id` is
+        the unchanged uniqueID and `new_parent_id` is the resolved
+        parent's uniqueID.
+    """
+    new_parent_arg = json.dumps(new_parent_id)
+    index_arg = "null" if index is None else str(int(index))
+
+    script = f"""
+const root = document.project.actual.rootResource;
+
+function findRes(g, id) {{
+  for (let i = 0; i < g.members.length; i++) {{
+    const m = g.members[i];
+    if (String(m.uniqueID) === id) return m;
+    if (m.members && m.members.length) {{
+      const sub = findRes(m, id); if (sub) return sub;
+    }}
+  }}
+  return null;
+}}
+
+const targetId = {json.dumps(resource_id)};
+const res = findRes(root, targetId);
+if (!res) throw new Error('Resource not found: ' + targetId);
+
+const newParentId = {new_parent_arg};
+let newParent;
+if (newParentId === null) {{
+  newParent = root;
+}} else {{
+  newParent = findRes(root, newParentId);
+  if (!newParent) throw new Error('New parent resource not found: ' + newParentId);
+}}
+
+if (newParent === res) {{
+  throw new Error('Cannot move a resource into itself');
+}}
+let cursor = newParent;
+while (cursor) {{
+  if (cursor === res) throw new Error('Cannot move a resource into one of its own descendants');
+  cursor = cursor.parent;
+}}
+
+let idx = {index_arg};
+if (idx === null) idx = newParent.members.length;
+if (idx < 0 || idx > newParent.members.length) {{
+  throw new Error('index out of range: ' + idx + ' (newParent has '
+                   + newParent.members.length + ' members)');
+}}
+
+res.move(newParent, idx);
+
+return {{
+  moved: true,
+  id: String(res.uniqueID),
+  new_parent_id: String(newParent.uniqueID),
+  index: idx,
+}};
+"""
+    result = await run_omnijs(script)
+    return json.dumps(result)
+
+
+@mcp.tool()
 async def delete_resource(
     resource_id: str,
 ) -> str:
