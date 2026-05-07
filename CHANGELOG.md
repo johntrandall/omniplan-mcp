@@ -11,6 +11,39 @@ significant remaining upstream code (kept verbatim under MIT). At v0.4.0 the
 distribution was renamed to `mcp-omniplan-jtr` and the project posture
 changed from "fork" to "build inspired by". See `LICENSE` for attribution.
 
+## [0.4.5] - 2026-05-07
+
+### Fixed
+- **Decimal helper backward-compatibility.** v0.4.4's
+  `decimalToFloat` swapped the regex parser for a direct
+  `parseFloat(d.toString())`. That works on OmniPlan 4.10.3+ where
+  `d.toString()` returns the numeric form (Verified). On 4.10.2 it
+  was untested whether `toString()` returns numeric or the
+  `[object Decimal: 100]` wrapper form — Inferred to work, not
+  Verified. To eliminate the regression risk, the helper now tries
+  the numeric parse first, and falls back to the wrapper-form regex
+  if the toString output isn't a numeric literal. Works on both 4.10.2
+  and 4.10.3 regardless of which shape toString returns.
+
+- **`move_task` / `move_resource` raise a clear error on old OmniPlan.**
+  v0.4.4 surfaced `TypeError: task.move is not a function` (raw
+  omniJS error) when called against OmniPlan 4.10.2. v0.4.5 checks
+  `typeof task.move !== 'function'` BEFORE the call and throws a
+  helpful message naming the version requirement (4.10.3+, build
+  v232.5.7) with a link to the staging URL where test builds live.
+
+### CHANGELOG correction
+- The v0.4.4 entry claimed the Decimal change "works on 4.10.2
+  unchanged" — that was Inferred, not Verified, and stated as fact.
+  Per the Verified/Observed/Inferred protocol it should have been
+  marked. The v0.4.5 fix removes the risk regardless.
+
+### Notes
+- Recommended upgrade path: `uv tool upgrade mcp-omniplan-jtr` (or
+  `pip install --upgrade mcp-omniplan-jtr`). v0.4.4 stays on PyPI but
+  is superseded; the new tools' error messages on 4.10.2 are
+  noticeably less confusing in v0.4.5.
+
 ## [0.4.4] - 2026-05-07
 
 ### Added

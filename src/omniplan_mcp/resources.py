@@ -39,14 +39,20 @@ function decimalToFloat(d) {
   if (d === null || d === undefined) return null;
   if (typeof d === 'number') return d;
   // Per Ken Case @ Omni (OG #3107771, 2026-05-06): `d.toString()` returns
-  // the numeric form directly. `String(d)` goes through a different path
-  // that produces "[object Decimal: 100]" — that's what the previous
-  // regex was working around. Verified against OmniPlan 4.10.3 v232.5.9
-  // (Decimal.fromString("100.00").toString() === "100"; trailing zeros
-  // dropped, "100.50" → "100.5").
+  // the numeric form directly on OmniPlan 4.10.3+ (Decimal.fromString(
+  // "100.00").toString() === "100" — Verified against v232.5.9). On
+  // 4.10.2 it's untested whether toString() returns the numeric form or
+  // the "[object Decimal: 100]" wrapper. To be backward-compatible with
+  // both shapes, try the numeric parse first; if the string isn't a
+  // recognizable numeric literal, fall back to the wrapper-form regex.
   var s = d.toString();
-  var f = parseFloat(s);
-  return isNaN(f) ? null : f;
+  if (/^-?[0-9]+(\\.[0-9]+)?$/.test(s.trim())) {
+    var f = parseFloat(s);
+    return isNaN(f) ? null : f;
+  }
+  // Wrapper-form fallback: "[object Decimal: 100]" — extract the number.
+  var m = s.match(/Decimal:\\s*(-?[0-9.]+)/);
+  return m ? parseFloat(m[1]) : null;
 }
 function typeName(t) {
   // String(ResourceType.staff) is "[object ResourceType: staff]".
@@ -220,6 +226,15 @@ if (idx === null) idx = newParent.members.length;
 if (idx < 0 || idx > newParent.members.length) {{
   throw new Error('index out of range: ' + idx + ' (newParent has '
                    + newParent.members.length + ' members)');
+}}
+
+if (typeof res.move !== 'function') {{
+  throw new Error(
+    'move_resource requires OmniPlan 4.10.3 or later (omniJS ' +
+    'resource.move method introduced in build v232.5.7, May 2026 — ' +
+    'see https://omnistaging.omnigroup.com/omniplan/). Your build ' +
+    'does not expose Resource.move. Upgrade OmniPlan to use this tool.'
+  );
 }}
 
 res.move(newParent, idx);

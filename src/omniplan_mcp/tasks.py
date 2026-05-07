@@ -696,6 +696,15 @@ if (idx < 0 || idx > newParent.subtasks.length) {{
                    + newParent.subtasks.length + ' subtasks)');
 }}
 
+if (typeof task.move !== 'function') {{
+  throw new Error(
+    'move_task requires OmniPlan 4.10.3 or later (omniJS task.move ' +
+    'method introduced in build v232.5.7, May 2026 — see ' +
+    'https://omnistaging.omnigroup.com/omniplan/). Your build does ' +
+    'not expose Task.move. Upgrade OmniPlan to use this tool.'
+  );
+}}
+
 task.move(newParent, idx);
 
 return {{
