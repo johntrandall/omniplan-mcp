@@ -32,7 +32,7 @@ This MCP is verified against the following builds. "Verified" = full pytest inte
 
 | OmniPlan version | Build | All tools? | Verified | Notes |
 |---|---|---|---|---|
-| **4.10.3 test** | v232.5.9 (`e7066d2251`) | ✅ All 22 tools | 2026-05-07 | Test build from <https://omnistaging.omnigroup.com/omniplan/>. Adds `task.move` / `resource.move` per OG ticket #3107771 |
+| **4.10.3 test** | v232.5.9 (`e7066d2251`) | ✅ All 22 tools | 2026-05-07 | Test build from <https://omnistaging.omnigroup.com/omniplan/>. Adds `task.move` / `resource.move` — Ken Case (Omni Group) shipped these in May 2026 in response to OG ticket #3107771 |
 | **4.10.2** | 232.5.0 | ✅ Except `move_task` / `move_resource` | 2026-05-01 | Public release. The two move tools raise a clear "requires 4.10.3+" error; everything else works including all reads, writes, dependencies, resource assignments, and `cost_per_use` |
 | 4.10.0–4.10.1 | (older 4.10.x patch builds) | Likely yes for non-move tools | Inferred (untested) | Should work — same omniJS surface as 4.10.2 for the tools we use, but not empirically verified |
 | 4.9.x and older | — | Unknown | Untested | Not part of the supported matrix |
@@ -136,14 +136,13 @@ All tools accept an optional `document_name` parameter. If omitted, the frontmos
 
 ## Limitations
 
-OmniPlan's omniJS surface has a few small gaps. Most tools work transparently; these are the documented edges:
+A few small omniJS edges. Per-version availability is in the supported-versions matrix above; this section names what's currently outside the omniJS surface entirely.
 
-- **Task / Resource reparenting requires OmniPlan 4.10.3+** — earlier builds had no omniJS path to reparent without changing uniqueID. Ken Case @ Omni shipped `task.move` and `resource.move` in May 2026 (OG ticket #3107771); the MCP wraps both as `move_task` / `move_resource`. On 4.10.2 those tools raise a clear "requires 4.10.3+" error; the rest of the MCP works on 4.10.2 unchanged.
 - **Resource working hours** are not editable through this MCP — `actual.rootResource.schedule` is opaque on the omniJS surface.
-- **Project currency** (`actual.currency`) is not exposed for the same reason — writes via omniJS don't persist across calls. Cost values themselves work; just not the currency unit.
+- **Project currency** (`actual.currency`) is not writable — writes via omniJS don't persist across calls. Cost values themselves work; just not the currency unit.
 - **OmniPlan must be running** with a document open. The MCP doesn't launch OmniPlan or open documents for you.
 
-For the full release-by-release history including verification status for each finding, see [CHANGELOG.md](CHANGELOG.md).
+For per-release detail and verification status, see [CHANGELOG.md](CHANGELOG.md).
 
 For the full catalogue (and the mitigations), see [`dev-docs/omnijs-persistence-gaps.md`](dev-docs/omnijs-persistence-gaps.md).
 
